@@ -9,7 +9,5 @@ python-jose==3.3.0
 python-dotenv==1.0.0
 python-multipart==0.0.6
 email-validator==2.0.0
-fastapi
-uvicorn
 firebase-admin
 python-multipart
