@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from app.database.firebase import db
+from app.routers import api_router
 
 app = FastAPI()
+
+app.include_router(api_router.router)
 
 @app.get("/")
 def read_root():
