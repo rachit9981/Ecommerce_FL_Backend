@@ -11,6 +11,13 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+import firebase_admin
+from firebase_admin import credentials, firestore
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,13 +27,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-y+xd^g=&9)7_n-ughs07i6-)x(&brb8h7q$!)jn1h1ci)xdryx"
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = []
 
+# Initialize Firebase
+FIREBASE_CONFIG_PATH = BASE_DIR / os.getenv('FIREBASE_CONFIG_PATH', 'config_anand.json')
+cred = credentials.Certificate(FIREBASE_CONFIG_PATH)
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 # Application definition
 
@@ -80,11 +92,19 @@ WSGI_APPLICATION = "anand_mobiles.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
+# Keep SQLite for Django's internal use (auth, sessions, etc.)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
+}
+
+# Firebase will be used directly in the models for application data
+FIREBASE_DATABASE = {
+    'PROJECT_ID': os.getenv('FIREBASE_PROJECT_ID', 'anandmobiles-daa8b'),
+    'CONFIG_PATH': str(FIREBASE_CONFIG_PATH),
 }
 
 
@@ -153,6 +173,3 @@ CORS_ALLOW_CREDENTIALS = True
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-# Firebase configuration (for Firebase integration)
-FIREBASE_CONFIG_PATH = BASE_DIR / 'config_anand.json'

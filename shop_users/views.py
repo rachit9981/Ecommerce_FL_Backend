@@ -1,17 +1,22 @@
-from django.shortcuts import render
-from rest_framework import viewsets, permissions, generics, status
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
+import json
 
 # Create your views here.
-class APIHomeView(APIView):
-    """
-    API Home view for shop_users
-    """
-    permission_classes = [permissions.AllowAny]
-    
-    def get(self, request, format=None):
-        return Response({
-            "message": "Welcome to Anand Mobiles API",
-            "status": "success"
-        }, status=status.HTTP_200_OK)
+@csrf_exempt
+def signup(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    data = json.loads(request.body)
+    # Implement your signup logic here
+    return JsonResponse({'message': 'Signup successful'}, status=status.HTTP_201_CREATED)
+
+@csrf_exempt
+def login(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    data = json.loads(request.body)
+    # Implement your login logic here
+    return JsonResponse({'message': 'Login successful'}, status=status.HTTP_200_OK)
+
