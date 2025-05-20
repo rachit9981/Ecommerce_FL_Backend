@@ -1,52 +1,48 @@
-# Ecommerce_FL_Backend
+# Anand Mobiles Backend
 
-Collections = 
-1. products -
-    - productId (string)
-    - variants (dict)
-    - images (list)
-    - category (string)
-    - brand (string)
-    - price (float)
-    - discount (float)
-    - stock (int)
-    - description (string)
-    - specs (dict)
+A Django REST API backend for the Anand Mobiles e-commerce platform.
 
-2. users -
-    - userID (string)
-    - orders (orderId)
-    - wishlists (list)
-    - carts (list)
-    - email (string)
-    - phone number (string)
-    - address (string)
-    - pincode (int)
-    - firstName (string)
-    - lastName (string)
-    - type (admin, user, delivery.)
+## Setup Instructions
 
-3. orders -
-    - orderId (string)
-    - userId (string)
-    - productId (string)
-    - totalPrice (float)
-    - status (string)
-    - shippingAddress (string)
-    - paymentMethod (string)
-    - orderDate (Date)
-    - deliveryDate (Date)
-    - trackingNumber (int)
+1. Clone the repository
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Run migrations:
+   ```bash
+   python manage.py makemigrations
+   python manage.py migrate
+   ```
+5. Create a superuser:
+   ```bash
+   python manage.py createsuperuser
+   ```
+6. Run the development server:
+   ```bash
+   python manage.py runserver
+   ```
 
-4. reviews - 
-    - reviewId (string)
-    - userId (string)
-    - productId (string)
-    - rating (int)
-    - comment (string)
-    - reviewDate (Date)
+## API Endpoints
 
-5. banners
-    - bannerId (string)
-    - link (string)
-    - position (int)
+- Admin API: `/api/admin/`
+- User API: `/api/`
+- API Authentication: `/api-auth/`
+- API Documentation: `/docs/`
+
+## Firebase Integration
+
+This project uses Firebase for authentication and storage. The Firebase configuration is stored in `config_anand.json`.
+
+## Frontend Integration
+
+This backend is designed to work with a React frontend. The CORS settings are configured to allow requests from:
+- http://localhost:3000
+- http://127.0.0.1:3000
+
+You can add more allowed origins in the `settings.py` file.
