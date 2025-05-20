@@ -108,6 +108,17 @@ FIREBASE_DATABASE = {
 }
 
 
+# Custom user model
+AUTH_USER_MODEL = 'shop_users.User'
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'shop_users.backends.FirebaseAuthenticationBackend',
+    'shop_users.backends.EmailPasswordBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -167,8 +178,31 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React default port
     "http://127.0.0.1:3000",
+    "http://localhost:5173",  # Vite default port
+    "http://127.0.0.1:5173",
 ]
+
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 # Media files
 MEDIA_URL = '/media/'
