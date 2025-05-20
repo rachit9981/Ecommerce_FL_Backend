@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     # Local apps
     "shop_admin",
     "shop_users",
+    "products",
     # Third-party apps
     "rest_framework",
     "corsheaders",

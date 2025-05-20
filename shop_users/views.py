@@ -15,6 +15,7 @@ def signup(request):
     
     try:
         data = json.loads(request.body)
+        print('Data received for signup:', data)
         
         # Check if it's a Firebase OAuth signup
         if 'idToken' in data:
