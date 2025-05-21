@@ -1,10 +1,8 @@
 from django.urls import path
-from . import views
-
+from .views import *
 app_name = 'shop_admin'
 
 urlpatterns = [
-    path('', views.AdminAPIHomeView.as_view(), name='admin-api-home'),
-    # Add your admin API endpoints here
-    # Example: path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    path('signup',admin_register, name='admin_register'),
+    path('login',admin_login, name='admin_login'),
 ]
