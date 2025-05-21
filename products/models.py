@@ -1,7 +1,5 @@
 from django.db import models
 
-# Create your models here.
-
 class Product(models.Model):
     name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -10,6 +8,7 @@ class Product(models.Model):
     rating = models.FloatField(null=True, blank=True)
     reviews = models.IntegerField(null=True, blank=True)
     stock = models.IntegerField()
+    variant = models.JSONField(default=dict)
     category = models.CharField(max_length=255)
     brand = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
