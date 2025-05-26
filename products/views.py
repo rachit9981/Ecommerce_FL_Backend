@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import Product
+# Remove import of Product model as we're using Firestore now
+# from .models import Product
 import csv
-from django.db.models import Q
+# Remove Django ORM specific imports
+# from django.db.models import Q
 from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
 from django.core.serializers import serialize
@@ -73,60 +75,130 @@ def insert_products_from_csv(request):
 
 # Fetch products by category
 def fetch_products_by_category(request, category):
-    products = Product.objects.filter(category__iexact=category)
-    return JsonResponse({'products': list(products.values())})
+    try:
+        # Query Firestore for products with matching category
+        products_ref = db.collection('products').where('category', '==', category).stream()
+        
+        # Convert to list of dictionaries
+        products_list = []
+        for doc in products_ref:
+            product_data = doc.to_dict()
+            product_data['id'] = doc.id
+            products_list.append(product_data)
+            
+        return JsonResponse({'products': products_list})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f"Error fetching products by category: {str(e)}"}, status=500)
 
 # Search and filter products
 def search_and_filter_products(request):
-    query = request.GET.get('query', '')
-    brand = request.GET.get('brand', '')
-    min_price = request.GET.get('min_price', 0)
-    max_price = request.GET.get('max_price', 1000000)
+    print("Called search_and_filter_products")
+    try:
+        query = request.GET.get('query', '')
+        brand = request.GET.get('brand', '')
+        min_price = float(request.GET.get('min_price', 0))
+        max_price = float(request.GET.get('max_price', 1000000))
+        
+        products_ref = db.collection('products')
+        products_ref = products_ref.where('price', '>=', min_price).where('price', '<=', max_price)
+        if brand:
+            products_ref = products_ref.where('brand', '==', brand)
 
-    filters = Q(name__icontains=query) | Q(description__icontains=query)
-    if brand:
-        filters &= Q(brand__iexact=brand)
-    filters &= Q(price__gte=min_price, price__lte=max_price)
+        product_docs = products_ref.stream()
 
-    products = Product.objects.filter(filters)
-    return JsonResponse({'products': list(products.values())})
+        products_list = []
+        for doc in product_docs:
+            product_data = doc.to_dict()
+            product_data['id'] = doc.id
+            
+            if query:
+                name = product_data.get('name', '').lower()
+                description = product_data.get('description', '').lower()
+                query_lower = query.lower()
+                
+                if query_lower in name or query_lower in description:
+                    products_list.append(product_data)
+            else:
+                products_list.append(product_data)
+        
+        return JsonResponse({'products': products_list})
+    
+    except ValueError as e:
+        # Handle price conversion errors
+        return JsonResponse({'status': 'error', 'message': f"Invalid price format: {str(e)}"}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f"Error searching products: {str(e)}"}, status=500)
 
 # Fetch product details
 def fetch_product_details(request, product_id):
     try:
-        product = Product.objects.get(id=product_id)
-        reviews = product.reviews.all()
-        return JsonResponse({
-            'product': {
-                'name': product.name,
-                'price': product.price,
-                'discount_price': product.discount_price,
-                'discount': product.discount,
-                'rating': product.rating,
-                'reviews': list(reviews.values('user_name', 'rating', 'comment', 'date')),
-                'stock': product.stock,
-                'category': product.category,
-                'brand': product.brand,
-                'description': product.description,
-                'images': product.images,
-                'features': product.features,
-                'specifications': product.specifications,
-            }
-        })
-    except Product.DoesNotExist:
-        return JsonResponse({'error': 'Product not found'}, status=404)
+        # Get the product document from Firestore
+        product_doc = db.collection('products').document(product_id).get()
+        
+        if not product_doc.exists:
+            return JsonResponse({'error': 'Product not found'}, status=404)
+        
+        # Convert the document to a dictionary
+        product_data = product_doc.to_dict()
+        product_data['id'] = product_doc.id  # Add the document ID
+        
+        # Check if reviews are stored as a subcollection
+        reviews = []
+        reviews_ref = db.collection('products').document(product_id).collection('reviews').stream()
+        
+        # If the reviews subcollection exists, process it
+        for review_doc in reviews_ref:
+            review_data = review_doc.to_dict()
+            review_data['id'] = review_doc.id
+            reviews.append(review_data)
+        
+        # If no reviews found in subcollection, check if they're embedded in the product document
+        if not reviews and 'reviews' in product_data and isinstance(product_data['reviews'], list):
+            reviews = product_data['reviews']
+        
+        # Add reviews to product data (overwrite if embedded, add if from subcollection)
+        product_data['reviews'] = reviews
+        
+        return JsonResponse({'product': product_data})
+    
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching product: {str(e)}'}, status=500)
 
 # Fetch all products
 @csrf_exempt
 def fetch_all_products(request):
-    products = Product.objects.all()
-    return JsonResponse({'products': list(products.values())})
+    try:
+        # Get all documents from the products collection
+        products_ref = db.collection('products').stream()
+        
+        # Convert document snapshots to a list of dictionaries
+        products_list = []
+        for doc in products_ref:
+            product_data = doc.to_dict()
+            product_data['id'] = doc.id  # Add the document ID as a field
+            products_list.append(product_data)
+            
+        return JsonResponse({'products': products_list})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 # Fetch product categories
 @csrf_exempt
 def fetch_categories(request):
-    categories = Product.objects.values_list('category', flat=True).distinct()
-    return JsonResponse({'categories': list(categories)})
+    try:
+        # Get all products from Firestore
+        products_ref = db.collection('products').stream()
+        
+        # Extract unique categories
+        categories = set()
+        for doc in products_ref:
+            product_data = doc.to_dict()
+            if 'category' in product_data and product_data['category']:
+                categories.add(product_data['category'])
+                
+        return JsonResponse({'categories': list(categories)})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f"Error fetching categories: {str(e)}"}, status=500)
 
 @csrf_exempt
 def add_product(request):
