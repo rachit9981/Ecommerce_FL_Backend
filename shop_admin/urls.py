@@ -8,5 +8,11 @@ urlpatterns = [
     path('get_all_users', get_all_users, name='get_all_users'),
     path('get_all_products', get_all_products, name='get_all_products'),
     path('get_all_orders', get_all_orders, name='get_all_orders'),
-    
+    path('get_all_admins', get_all_admins, name='get_all_admins'),
+    path('delete_admin/<str:admin_id>', delete_admin, name='delete_admin'),
+    path('toggle-featured/<str:product_id>/', toggle_featured_product, name='toggle_featured'),
+    path('delete-product/<str:product_id>/', delete_product, name='delete_product'),
+    path('products/add/', add_product, name='add_product'),
+    path('products/edit/<str:product_id>/', edit_product, name='edit_product'),
+     path('users/ban/<str:user_id>/', ban_user, name='ban_user'),
 ]
