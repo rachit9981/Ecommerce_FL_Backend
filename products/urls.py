@@ -3,7 +3,7 @@ from .views import *
 
 
 urlpatterns = [
-    path('insert_products_from_csv/', insert_products_from_csv, name='product-list'),
+    path('i /', insert_products_from_csv, name='product-list'),
     path('products/', fetch_all_products, name='fetch-all-products'),
     path('categories/', fetch_categories, name='fetch-categories'),
     path('products/<int:product_id>/', fetch_product_details, name='fetch-product-details'),
