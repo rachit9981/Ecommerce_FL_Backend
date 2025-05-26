@@ -208,3 +208,4 @@ CORS_ALLOW_HEADERS = [
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+SECRET_KEY = os.getenv('SECRET_KEY')

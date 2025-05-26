@@ -18,6 +18,28 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'name': self.name,
+            'price': float(self.price),
+            'discount_price': float(self.discount_price) if self.discount_price else None,
+            'discount': self.discount,
+            'rating': self.rating,
+            'reviews': self.reviews,
+            'stock': self.stock,
+            'variant': self.variant,
+            'category': self.category,
+            'brand': self.brand,
+            'description': self.description,
+            'images': self.images,
+            'features': self.features,
+            'specifications': self.specifications
+        }
 
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_reviews')
@@ -29,6 +51,20 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.user_name} - {self.product.name}"
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'product_id': self.product.id,
+            'title': self.title,
+            'user_name': self.user_name,
+            'rating': float(self.rating),
+            'comment': self.comment,
+            'date': str(self.date)
+        }
 
 class Order(models.Model):
     STATUS_CHOICES = (
@@ -51,6 +87,24 @@ class Order(models.Model):
     
     def __str__(self):
         return f"Order #{self.id} - {self.status}"
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'order_date': self.order_date.isoformat(),
+            'status': self.status,
+            'shipping_address': self.shipping_address,
+            'billing_address': self.billing_address,
+            'payment_method': self.payment_method,
+            'payment_status': self.payment_status,
+            'total_amount': float(self.total_amount),
+            'tracking_number': self.tracking_number,
+            'items': [item.to_json() for item in self.items.all()]
+        }
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
@@ -64,6 +118,20 @@ class OrderItem(models.Model):
     @property
     def subtotal(self):
         return self.price * self.quantity
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'order_id': self.order.id,
+            'product_id': self.product.id,
+            'product_name': self.product.name,
+            'quantity': self.quantity,
+            'price': float(self.price),
+            'subtotal': float(self.subtotal)
+        }
 
 class Wishlist(models.Model):
     user_id = models.IntegerField()  # Foreign key to user model
@@ -75,6 +143,18 @@ class Wishlist(models.Model):
     
     def __str__(self):
         return f"Wishlist item for user {self.user_id} - {self.product.name}"
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'product_id': self.product.id,
+            'product_name': self.product.name,
+            'date_added': self.date_added.isoformat()
+        }
 
 class Cart(models.Model):
     user_id = models.IntegerField()  # Foreign key to user model
@@ -93,6 +173,20 @@ class Cart(models.Model):
     def item_count(self):
         cart_items = self.items.all()
         return sum(item.quantity for item in cart_items)
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'total': float(self.total),
+            'item_count': self.item_count,
+            'items': [item.to_json() for item in self.items.all()]
+        }
 
 
 class CartItem(models.Model):
@@ -110,3 +204,18 @@ class CartItem(models.Model):
     @property
     def subtotal(self):
         return self.product.price * self.quantity
+    
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': self.id,
+            'cart_id': self.cart.id,
+            'product_id': self.product.id,
+            'product_name': self.product.name,
+            'quantity': self.quantity,
+            'date_added': self.date_added.isoformat(),
+            'price': float(self.product.price),
+            'subtotal': float(self.subtotal)
+        }

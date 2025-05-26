@@ -74,6 +74,24 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_short_name(self):
         return self.first_name
     
+    def to_json(self):
+        """
+        Returns all model attributes as a JSON-serializable dictionary
+        """
+        return {
+            'id': str(self.id),  # Convert UUID to string
+            'email': self.email,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'phone_number': self.phone_number,
+            'firebase_uid': self.firebase_uid,
+            'auth_provider': self.auth_provider,
+            'date_joined': self.date_joined.isoformat(),
+            'is_active': self.is_active,
+            'is_staff': self.is_staff,
+            'is_superuser': self.is_superuser
+        }
+    
     @classmethod
     def create_firebase_user(cls, firebase_user_record):
         """
