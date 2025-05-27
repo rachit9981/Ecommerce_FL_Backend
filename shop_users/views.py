@@ -4,7 +4,7 @@ from django.contrib.auth.hashers import make_password, check_password
 import jwt
 from firebase_admin.exceptions import FirebaseError
 import json
-
+from shop_users.utils import user_required
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore, auth as firebase_auth
 
@@ -259,3 +259,86 @@ def login(request):
     except Exception as e:
         return JsonResponse({'error': f'An internal server error occurred: {str(e)}'}, status=500)
 
+# Products related views would go here, similar to the previous example.
+
+@user_required
+@csrf_exempt
+def add_review(request, product_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Extract required fields
+        user_id = request.user_id
+        rating = data.get('rating')
+        comment = data.get('comment', '')
+        email = request.user_email
+        
+        # Validate required fields
+        if not user_id:
+            return JsonResponse({'error': 'User ID is required'}, status=400)
+        
+        if not rating:
+            return JsonResponse({'error': 'Rating is required'}, status=400)
+        
+        # Validate rating range
+        try:
+            rating = float(rating)
+            if rating < 1 or rating > 5:
+                return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+        except ValueError:
+            return JsonResponse({'error': 'Rating must be a valid number'}, status=400)
+        
+        # Check if product exists
+        product_doc = db.collection('products').document(product_id).get()
+        if not product_doc.exists:
+            return JsonResponse({'error': 'Product not found'}, status=404)
+        
+        # Check if user has already reviewed this product
+        existing_review = db.collection('products').document(product_id).collection('reviews').where('user_id', '==', user_id).limit(1).stream()
+        if list(existing_review):
+            return JsonResponse({'error': 'User has already reviewed this product'}, status=400)
+        
+        # Create review data
+        review_data = {
+            'user_id': user_id,
+            'email': email,
+            'rating': rating,
+            'comment': comment,
+            'created_at': firestore.SERVER_TIMESTAMP,
+        }
+        
+        # Add review to subcollection
+        review_ref = db.collection('products').document(product_id).collection('reviews').add(review_data)
+        
+        # Update product's average rating and review count
+        reviews_ref = db.collection('products').document(product_id).collection('reviews').stream()
+        total_rating = 0
+        review_count = 0
+        
+        for review_doc in reviews_ref:
+            review = review_doc.to_dict()
+            total_rating += review.get('rating', 0)
+            review_count += 1
+        
+        average_rating = round(total_rating / review_count, 2) if review_count > 0 else 0
+        
+        # Update product document with new rating and review count
+        db.collection('products').document(product_id).update({
+            'rating': average_rating,
+            'reviews_count': review_count
+        })
+        
+        return JsonResponse({
+            'message': 'Review added successfully',
+            'review_id': review_ref[1].id,
+            'updated_rating': average_rating,
+            'total_reviews': review_count
+        }, status=201)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error adding review: {str(e)}'}, status=500)

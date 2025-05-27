@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
 from django.core.serializers import serialize
 from anand_mobiles.settings import db # Import the Firestore client
+from google.cloud import firestore # Import firestore for Query constants
 import json # Import json for parsing specifications
 
 # Create your views here.
@@ -130,6 +131,7 @@ def search_and_filter_products(request):
         return JsonResponse({'status': 'error', 'message': f"Error searching products: {str(e)}"}, status=500)
 
 # Fetch product details
+@csrf_exempt
 def fetch_product_details(request, product_id):
     try:
         # Get the product document from Firestore
@@ -142,22 +144,29 @@ def fetch_product_details(request, product_id):
         product_data = product_doc.to_dict()
         product_data['id'] = product_doc.id  # Add the document ID
         
-        # Check if reviews are stored as a subcollection
+        # Get reviews from subcollection (limit to recent 5 for product details)
         reviews = []
-        reviews_ref = db.collection('products').document(product_id).collection('reviews').stream()
+        reviews_ref = db.collection('products').document(product_id).collection('reviews').order_by('created_at', direction=firestore.Query.DESCENDING).limit(5).stream()
         
-        # If the reviews subcollection exists, process it
         for review_doc in reviews_ref:
             review_data = review_doc.to_dict()
             review_data['id'] = review_doc.id
+            # Convert timestamp to string for JSON serialization
+            if 'created_at' in review_data and review_data['created_at']:
+                review_data['created_at'] = review_data['created_at'].isoformat()
             reviews.append(review_data)
         
-        # If no reviews found in subcollection, check if they're embedded in the product document
+        # If no reviews found in subcollection, check if they're embedded in the product document (fallback)
         if not reviews and 'reviews' in product_data and isinstance(product_data['reviews'], list):
             reviews = product_data['reviews']
         
-        # Add reviews to product data (overwrite if embedded, add if from subcollection)
+        # Add reviews to product data
         product_data['reviews'] = reviews
+        
+        # Get total review count
+        all_reviews = db.collection('products').document(product_id).collection('reviews').stream()
+        total_reviews = len(list(all_reviews))
+        product_data['total_reviews'] = total_reviews
         
         return JsonResponse({'product': product_data})
     
