@@ -662,6 +662,7 @@ def create_razorpay_order(request):
     try:
         user_id = request.user_id
         data = json.loads(request.body)
+        print('Request data:', data)
         amount_in_paise = data.get('amount') # Amount should be in paise
         currency = data.get('currency', 'INR')
         product_ids = data.get('product_ids') # List of product_ids in the cart being ordered
@@ -680,11 +681,13 @@ def create_razorpay_order(request):
         # Initialize Razorpay client
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
-        # Create Razorpay order
+        # Create Razorpay order with a receipt ID that won't exceed 40 characters
+        import time
+        receipt_id = f'rcpt_{user_id[:8]}_{int(time.time())}'  # Shorter, unique receipt ID
         order_payload = {
             'amount': amount_in_paise,
             'currency': currency,
-            'receipt': f'receipt_user_{user_id}_{firestore.SERVER_TIMESTAMP}', # Unique receipt ID
+            'receipt': receipt_id,  # Unique receipt ID within 40 chars limit
             'payment_capture': 1 # Auto capture payment
         }
         razorpay_order = client.order.create(data=order_payload)
@@ -729,14 +732,15 @@ def verify_razorpay_payment(request):
     try:
         user_id = request.user_id
         data = json.loads(request.body)
+        print('Payment verification data:', data)
 
         razorpay_order_id = data.get('razorpay_order_id')
         razorpay_payment_id = data.get('razorpay_payment_id')
         razorpay_signature = data.get('razorpay_signature')
-        app_order_id = data.get('app_order_id') # Your application's order ID
+        app_order_id = data.get('order_id') # Changed 'app_order_id' to 'order_id'
 
         if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature, app_order_id]):
-            return JsonResponse({'error': 'Missing Razorpay payment details or app_order_id'}, status=400)
+            return JsonResponse({'error': 'Missing Razorpay payment details or app_order_id/order_id'}, status=400)
 
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
@@ -864,16 +868,19 @@ def verify_razorpay_payment(request):
     except razorpay.errors.SignatureVerificationError as sve:
         # Also update order status in case of this specific error
         try:
-            order_doc_ref = db.collection('users').document(user_id).collection('orders').document(app_order_id)
-            if order_doc_ref.get().exists:
-                 order_doc_ref.update({
-                    'status': 'payment_failed',
-                    'payment_details': {
-                        'razorpay_payment_id': data.get('razorpay_payment_id'),
-                        'error_message': 'Signature verification failed (Razorpay lib error)'
-                    },
-                    'updated_at': firestore.SERVER_TIMESTAMP
-                })
+            # Ensure app_order_id is defined in this scope if an error occurs before its main assignment
+            app_order_id_for_error = data.get('order_id') # Attempt to get it again
+            if app_order_id_for_error:
+                order_doc_ref_error = db.collection('users').document(user_id).collection('orders').document(app_order_id_for_error)
+                if order_doc_ref_error.get().exists:
+                    order_doc_ref_error.update({
+                        'status': 'payment_failed',
+                        'payment_details': {
+                            'razorpay_payment_id': data.get('razorpay_payment_id'),
+                            'error_message': 'Signature verification failed (Razorpay lib error)'
+                        },
+                        'updated_at': firestore.SERVER_TIMESTAMP
+                    })
         except Exception as e_inner:
             print(f"Error updating order status after SignatureVerificationError: {e_inner}")
 
