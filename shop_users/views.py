@@ -934,3 +934,272 @@ def get_order_details(request, order_id):
     except Exception as e:
         return JsonResponse({'error': f'Error fetching order details: {str(e)}'}, status=500)
 
+@user_required
+@csrf_exempt
+def add_address(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    try:
+        user_id = request.user_id
+        data = json.loads(request.body)
+
+        required_fields = ['type', 'street_address', 'city', 'state', 'postal_code', 'phone_number']
+        if not all(field in data for field in required_fields):
+            return JsonResponse({'error': f'Missing one or more required fields: {", ".join(required_fields)}'}, status=400)
+
+        is_default = data.get('is_default', False)
+
+        addresses_ref = db.collection('users').document(user_id).collection('addresses')
+
+        # If this address is being set as default, unset other default addresses
+        if is_default:
+            default_addresses_query = addresses_ref.where('is_default', '==', True).stream()
+            batch = db.batch()
+            for addr_doc in default_addresses_query:
+                batch.update(addr_doc.reference, {'is_default': False})
+            batch.commit()
+
+        address_payload = {
+            'type': data['type'],
+            'street_address': data['street_address'],
+            'city': data['city'],
+            'state': data['state'],
+            'postal_code': data['postal_code'],
+            'phone_number': data['phone_number'],
+            'is_default': is_default,
+            'created_at': firestore.SERVER_TIMESTAMP,
+            'updated_at': firestore.SERVER_TIMESTAMP,
+        }
+        _, new_address_ref = addresses_ref.add(address_payload) # Use _ for unused update_time
+        
+        # Fetch the newly created document to get resolved timestamps
+        new_address_doc = new_address_ref.get()
+        response_address_data = new_address_doc.to_dict()
+        response_address_data['id'] = new_address_ref.id # Add the ID to the response data
+
+        return JsonResponse({'message': 'Address added successfully', 'address_id': new_address_ref.id, 'address': response_address_data}, status=201)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error adding address: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt
+def get_addresses(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    try:
+        user_id = request.user_id
+        addresses_stream = db.collection('users').document(user_id).collection('addresses').order_by('is_default', direction=firestore.Query.DESCENDING).stream()
+        
+        addresses_list = []
+        for addr_doc in addresses_stream:
+            address_data = addr_doc.to_dict()
+            address_data['id'] = addr_doc.id
+            addresses_list.append(address_data)
+        
+        return JsonResponse({'addresses': addresses_list}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching addresses: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt
+def update_address(request, address_id):
+    if request.method != 'PUT': # Typically PUT for updates
+        return JsonResponse({'error': 'Invalid request method, use PUT'}, status=405)
+    try:
+        user_id = request.user_id
+        data = json.loads(request.body)
+        address_ref = db.collection('users').document(user_id).collection('addresses').document(address_id)
+
+        if not address_ref.get().exists:
+            return JsonResponse({'error': 'Address not found'}, status=404)
+
+        is_default = data.get('is_default')
+        addresses_collection_ref = db.collection('users').document(user_id).collection('addresses')
+
+        # If this address is being set as default, unset other default addresses
+        if is_default is True:
+            default_addresses_query = addresses_collection_ref.where('is_default', '==', True).stream()
+            batch = db.batch()
+            for addr_doc in default_addresses_query:
+                if addr_doc.id != address_id: # Don't unset the current one if it's already default
+                    batch.update(addr_doc.reference, {'is_default': False})
+            batch.commit() # Commit this batch first
+        
+        # Prepare payload, only update fields that are provided
+        update_payload = {}
+        allowed_fields = ['type', 'street_address', 'city', 'state', 'postal_code', 'phone_number', 'is_default']
+        for field in allowed_fields:
+            if field in data:
+                update_payload[field] = data[field]
+        
+        if not update_payload:
+            return JsonResponse({'error': 'No update data provided'}, status=400)
+
+        update_payload['updated_at'] = firestore.SERVER_TIMESTAMP
+        address_ref.update(update_payload)
+        updated_address = address_ref.get().to_dict()
+        updated_address['id'] = address_id
+
+        return JsonResponse({'message': 'Address updated successfully', 'address': updated_address}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error updating address: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt
+def delete_address(request, address_id):
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    try:
+        user_id = request.user_id
+        address_ref = db.collection('users').document(user_id).collection('addresses').document(address_id)
+        address_doc = address_ref.get()
+
+        if not address_doc.exists:
+            return JsonResponse({'error': 'Address not found'}, status=404)
+        
+        # If deleting the default address, ideally the user should be prompted to set a new default.
+        # For now, we just delete it. Consider application logic for this.
+        # if address_doc.to_dict().get('is_default') is True:
+            # Potentially find another address and make it default, or leave no default.
+
+        address_ref.delete()
+        return JsonResponse({'message': 'Address deleted successfully', 'address_id': address_id}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': f'Error deleting address: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt
+def set_default_address(request, address_id):
+    if request.method != 'POST': # Using POST to make a specific address default
+        return JsonResponse({'error': 'Invalid request method, use POST'}, status=405)
+    try:
+        user_id = request.user_id
+        target_address_ref = db.collection('users').document(user_id).collection('addresses').document(address_id)
+
+        if not target_address_ref.get().exists:
+            return JsonResponse({'error': 'Target address not found'}, status=404)
+
+        addresses_collection_ref = db.collection('users').document(user_id).collection('addresses')
+        default_addresses_query = addresses_collection_ref.where('is_default', '==', True).stream()
+        
+        batch = db.batch()
+        # Unset current default(s)
+        for addr_doc in default_addresses_query:
+            if addr_doc.id != address_id:
+                batch.update(addr_doc.reference, {'is_default': False})
+        
+        # Set the new default
+        batch.update(target_address_ref, {'is_default': True, 'updated_at': firestore.SERVER_TIMESTAMP})
+        batch.commit()
+
+        return JsonResponse({'message': f'Address {address_id} set as default successfully'}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': f'Error setting default address: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt
+def get_profile(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    try:
+        user_id = request.user_id
+        user_doc_ref = db.collection('users').document(user_id)
+        user_doc = user_doc_ref.get()
+
+        if not user_doc.exists:
+            return JsonResponse({'error': 'User profile not found'}, status=404)
+        
+        user_data = user_doc.to_dict()
+        # Exclude sensitive information like password
+        profile_data = {
+            'user_id': user_doc.id,
+            'email': user_data.get('email'),
+            'first_name': user_data.get('first_name'),
+            'last_name': user_data.get('last_name'),
+            'phone_number': user_data.get('phone_number'),
+            'auth_provider': user_data.get('auth_provider'),
+            'uid': user_data.get('uid') # Firebase UID if available
+        }
+        return JsonResponse(profile_data, status=200)
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching profile: {str(e)}'}, status=500)
+
+
+@user_required
+@csrf_exempt
+def update_profile(request):
+    if request.method != 'POST': # Using POST as it can modify multiple fields including password
+        return JsonResponse({'error': 'Invalid request method, use POST'}, status=405)
+    
+    try:
+        user_id = request.user_id
+        data = json.loads(request.body)
+        user_doc_ref = db.collection('users').document(user_id)
+        user_doc = user_doc_ref.get()
+
+        if not user_doc.exists:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        
+        user_data = user_doc.to_dict()
+        update_payload = {}
+        response_message = "Profile updated successfully"
+
+        # Update basic profile information
+        if 'first_name' in data:
+            update_payload['first_name'] = data['first_name']
+        if 'last_name' in data:
+            update_payload['last_name'] = data['last_name']
+        if 'phone_number' in data:
+            update_payload['phone_number'] = data['phone_number']
+
+        # Handle password change for email provider users
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_new_password = data.get('confirm_new_password')
+
+        if current_password and new_password and confirm_new_password:
+            if user_data.get('auth_provider') == 'email':
+                if not check_password(current_password, user_data.get('password')):
+                    return JsonResponse({'error': 'Invalid current password'}, status=400)
+                if new_password != confirm_new_password:
+                    return JsonResponse({'error': 'New passwords do not match'}, status=400)
+                if len(new_password) < 6: # Basic password strength check
+                    return JsonResponse({'error': 'New password must be at least 6 characters long'}, status=400)
+                
+                update_payload['password'] = make_password(new_password)
+                response_message = "Profile and password updated successfully"
+            else:
+                # For Firebase auth users, password change should be handled via Firebase mechanisms
+                return JsonResponse({
+                    'error': 'Password change not allowed for this account type. Please use the provider\'s method to change your password.',
+                    'profile_updated': bool(update_payload) # Inform if other fields were processed
+                }, status=400)
+        elif current_password or new_password or confirm_new_password:
+            # If any password field is present, all must be present
+            return JsonResponse({'error': 'All password fields (current, new, confirm) are required to change password'}, status=400)
+
+        if update_payload:
+            update_payload['updated_at'] = firestore.SERVER_TIMESTAMP
+            user_doc_ref.update(update_payload)
+            
+            # Fetch updated data to return (optional, but good for confirmation)
+            updated_user_data = user_doc_ref.get().to_dict()
+            profile_data_to_return = {
+                'email': updated_user_data.get('email'),
+                'first_name': updated_user_data.get('first_name'),
+                'last_name': updated_user_data.get('last_name'),
+                'phone_number': updated_user_data.get('phone_number')
+            }
+            return JsonResponse({'message': response_message, 'user': profile_data_to_return}, status=200)
+        else:
+            return JsonResponse({'message': 'No changes provided'}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error updating profile: {str(e)}'}, status=500)
+
