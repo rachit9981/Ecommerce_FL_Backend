@@ -32,6 +32,10 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'a_default_secret_key_for_development_123!@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
+# Payment gateway settings
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+
 ALLOWED_HOSTS = ['10.0.2.2','127.0.0.1']
 
 # Initialize Firebase
