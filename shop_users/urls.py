@@ -22,4 +22,6 @@ urlpatterns = [
     # Order & Payment URLs
     path('order/razorpay/create/', create_razorpay_order, name='create_razorpay_order'),
     path('order/razorpay/verify/', verify_razorpay_payment, name='verify_razorpay_payment'),
+    path('orders/', get_user_orders, name='get_user_orders'),
+    path('orders/<str:order_id>/', get_order_details, name='get_order_details'),
 ]

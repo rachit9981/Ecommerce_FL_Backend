@@ -881,3 +881,56 @@ def verify_razorpay_payment(request):
     except Exception as e:
         return JsonResponse({'error': f'Error verifying payment: {str(e)}'}, status=500)
 
+@user_required
+@csrf_exempt # GET requests are generally not CSRF vulnerable, but good practice if any state changes
+def get_user_orders(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    try:
+        user_id = request.user_id
+        orders_ref = db.collection('users').document(user_id).collection('orders').order_by('created_at', direction=firestore.Query.DESCENDING).stream()
+
+        orders_list = []
+        for order_doc in orders_ref:
+            order_data = order_doc.to_dict()
+            orders_list.append({
+                'order_id': order_doc.id,
+                'status': order_data.get('status'),
+                'total_amount': order_data.get('total_amount'),
+                'currency': order_data.get('currency'),
+                'created_at': order_data.get('created_at'),
+                'item_count': len(order_data.get('order_items', []))
+            })
+
+        return JsonResponse({'orders': orders_list}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching orders: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt # As above
+def get_order_details(request, order_id):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    try:
+        user_id = request.user_id
+        order_doc_ref = db.collection('users').document(user_id).collection('orders').document(order_id)
+        order_doc = order_doc_ref.get()
+
+        if not order_doc.exists:
+            return JsonResponse({'error': 'Order not found or access denied'}, status=404)
+
+        order_data = order_doc.to_dict()
+        
+        # Ensure the order belongs to the user (already implicitly handled by Firestore path, but good for clarity)
+        if order_data.get('user_id') != user_id:
+             return JsonResponse({'error': 'Order not found or access denied'}, status=404)
+
+
+        return JsonResponse({'order_details': order_data}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching order details: {str(e)}'}, status=500)
+
