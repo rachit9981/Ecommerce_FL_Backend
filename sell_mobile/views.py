@@ -1,6 +1,4 @@
-from django.shortcuts import render
 from django.http import JsonResponse
-from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
 from anand_mobiles.settings import db  # Import the Firestore client
 from google.cloud import firestore  # Import firestore for Query constants
@@ -18,7 +16,6 @@ def submit_sell_mobile(request):
         try:
             data = json.loads(request.body)
             
-            # Validate required fields
             required_fields = ['user_name', 'phone_number', 'email', 'location', 
                              'mobile_brand', 'mobile_model', 'condition', 'expected_price']
             
@@ -29,12 +26,10 @@ def submit_sell_mobile(request):
                         'message': f'Missing required field: {field}'
                     }, status=400)
             
-            # Add timestamp and default status
             data['status'] = 'pending'
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
             
-            # Create a new document in Firestore
             doc_ref = db.collection('sell_mobiles').document()
             doc_ref.set(data)
             
@@ -66,7 +61,6 @@ def fetch_sell_mobiles(request):
     Fetch all approved sell mobile listings with pagination and filtering
     """
     try:
-        # Get query parameters
         page = int(request.GET.get('page', 1))
         per_page = int(request.GET.get('per_page', 20))
         status = request.GET.get('status', 'approved')
@@ -75,7 +69,6 @@ def fetch_sell_mobiles(request):
         min_price = request.GET.get('min_price', '')
         max_price = request.GET.get('max_price', '')
         
-        # Build query
         query = db.collection('sell_mobiles').where('status', '==', status)
         
         if brand:
@@ -84,7 +77,6 @@ def fetch_sell_mobiles(request):
         if condition:
             query = query.where('condition', '==', condition)
         
-        # Execute query
         docs = query.stream()
         sell_mobiles = []
         
@@ -92,7 +84,6 @@ def fetch_sell_mobiles(request):
             mobile_data = doc.to_dict()
             mobile_data['id'] = doc.id
             
-            # Apply price filtering (since Firestore doesn't support range queries with other filters)
             if min_price and float(mobile_data.get('expected_price', 0)) < float(min_price):
                 continue
             if max_price and float(mobile_data.get('expected_price', 0)) > float(max_price):
@@ -100,10 +91,8 @@ def fetch_sell_mobiles(request):
                 
             sell_mobiles.append(mobile_data)
         
-        # Sort by created_at (newest first)
         sell_mobiles.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         
-        # Manual pagination
         start_index = (page - 1) * per_page
         end_index = start_index + per_page
         paginated_mobiles = sell_mobiles[start_index:end_index]
@@ -143,7 +132,6 @@ def fetch_sell_mobile_details(request, mobile_id):
         mobile_data = doc.to_dict()
         mobile_data['id'] = doc.id
         
-        # Also fetch inquiries for this mobile
         inquiries_ref = db.collection('sell_mobile_inquiries').where('sell_mobile_id', '==', mobile_id)
         inquiries = []
         
@@ -174,7 +162,6 @@ def submit_inquiry(request):
         try:
             data = json.loads(request.body)
             
-            # Validate required fields
             required_fields = ['sell_mobile_id', 'buyer_name', 'buyer_phone']
             
             for field in required_fields:
@@ -184,7 +171,6 @@ def submit_inquiry(request):
                         'message': f'Missing required field: {field}'
                     }, status=400)
             
-            # Check if the sell mobile exists
             sell_mobile_ref = db.collection('sell_mobiles').document(data['sell_mobile_id'])
             if not sell_mobile_ref.get().exists:
                 return JsonResponse({
@@ -192,11 +178,9 @@ def submit_inquiry(request):
                     'message': 'Mobile listing not found'
                 }, status=404)
             
-            # Add timestamp and default status
             data['status'] = 'pending'
             data['created_at'] = datetime.now().isoformat()
             
-            # Create a new inquiry document
             doc_ref = db.collection('sell_mobile_inquiries').document()
             doc_ref.set(data)
             
@@ -244,7 +228,6 @@ def update_sell_mobile_status(request, mobile_id):
                     'message': f'Invalid status. Valid options: {valid_statuses}'
                 }, status=400)
             
-            # Update the document
             doc_ref = db.collection('sell_mobiles').document(mobile_id)
             
             if not doc_ref.get().exists:
@@ -308,3 +291,5 @@ def fetch_brands(request):
             'status': 'error',
             'message': f'An error occurred: {str(e)}'
         }, status=500)
+
+
