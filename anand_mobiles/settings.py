@@ -32,7 +32,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'a_default_secret_key_for_development_123!@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['10.0.2.2','127.0.0.1']
 
 # Initialize Firebase
 FIREBASE_CONFIG_PATH = BASE_DIR / os.getenv('FIREBASE_CONFIG_PATH', 'config_anand.json')
@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     "shop_admin",
     "shop_users",
     "products",
-    "shop_partners",
+    "sell_mobile",
     # Third-party apps
     "rest_framework",
     "corsheaders",

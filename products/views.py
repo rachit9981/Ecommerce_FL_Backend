@@ -78,7 +78,7 @@ def insert_products_from_csv(request):
 def fetch_products_by_category(request, category):
     try:
         # Query Firestore for products with matching category
-        products_ref = db.collection('products').where('category', '==', category).stream()
+        products_ref = db.collection('products').where(filter=firestore.FieldFilter('category', '==', category)).stream()
         
         # Convert to list of dictionaries
         products_list = []
@@ -101,10 +101,8 @@ def search_and_filter_products(request):
         max_price = float(request.GET.get('max_price', 1000000))
         
         products_ref = db.collection('products')
-        products_ref = products_ref.where('price', '>=', min_price).where('price', '<=', max_price)
-        if brand:
-            products_ref = products_ref.where('brand', '==', brand)
-
+        products_ref = products_ref.where(filter=firestore.FieldFilter('price', '>=', min_price)).where(filter=firestore.FieldFilter('price', '<=', max_price))
+        
         product_docs = products_ref.stream()
 
         products_list = []
@@ -112,6 +110,13 @@ def search_and_filter_products(request):
             product_data = doc.to_dict()
             product_data['id'] = doc.id
             
+            # Apply brand filter (case-insensitive)
+            if brand:
+                product_brand = product_data.get('brand', '').lower()
+                if brand.lower() not in product_brand:
+                    continue
+            
+            # Apply text search filter
             if query:
                 name = product_data.get('name', '').lower()
                 description = product_data.get('description', '').lower()
