@@ -308,6 +308,9 @@ def add_review(request, product_id):
             'rating': rating,
             'comment': comment,
             'created_at': firestore.SERVER_TIMESTAMP,
+            'is_verified': False,  # Default to false, admin can verify later
+            'reported_count': 0,  # Initialize reported count
+            'helpful_users': [],  # Initialize helpful users list
         }
         
         # Add review to subcollection
@@ -342,3 +345,106 @@ def add_review(request, product_id):
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'error': f'Error adding review: {str(e)}'}, status=500)
+
+
+@user_required
+@csrf_exempt
+def report_review(request, product_id, review_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    try:
+        user_id = request.user_id
+        
+        # Check if review exists
+        review_doc_ref = db.collection('products').document(product_id).collection('reviews').document(review_id)
+        review_doc = review_doc_ref.get()
+        
+        if not review_doc.exists:
+            return JsonResponse({'error': 'Review not found'}, status=404)
+        
+        review_data = review_doc.to_dict()
+        
+        # Create reports subcollection if it doesn't exist, or add to it
+        # First check if user already reported this review
+        existing_report = review_doc_ref.collection('reports').where('user_id', '==', user_id).limit(1).stream()
+        if list(existing_report):
+            return JsonResponse({'error': 'You have already reported this review'}, status=400)
+        
+        # Add report
+        report_data = {
+            'user_id': user_id,
+            'created_at': firestore.SERVER_TIMESTAMP,
+        }
+        report_ref = review_doc_ref.collection('reports').add(report_data)
+        
+        # Update report count in the review document
+        reports_count = len(list(review_doc_ref.collection('reports').stream()))
+        
+        # Make sure reported_count field exists
+        if 'reported_count' not in review_data:
+            review_doc_ref.update({
+                'reported_count': reports_count
+            })
+        else:
+            review_doc_ref.update({
+                'reported_count': reports_count
+            })
+        
+        return JsonResponse({
+            'message': 'Review reported successfully',
+            'report_id': report_ref[1].id,
+            'reported_count': reports_count
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error reporting review: {str(e)}'}, status=500)
+
+@user_required
+@csrf_exempt
+def mark_review_helpful(request, product_id, review_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    try:
+        user_id = request.user_id
+        
+        # Check if review exists
+        review_doc_ref = db.collection('products').document(product_id).collection('reviews').document(review_id)
+        review_doc = review_doc_ref.get()
+        
+        if not review_doc.exists:
+            return JsonResponse({'error': 'Review not found'}, status=404)
+        
+        review_data = review_doc.to_dict()
+        
+        # Check if user already marked this review as helpful
+        if 'helpful_users' not in review_data:
+            # Initialize the field if it doesn't exist
+            helpful_users = []
+        else:
+            helpful_users = review_data.get('helpful_users', [])
+            
+        if user_id in helpful_users:
+            # User is unmarking the review as helpful (toggle functionality)
+            helpful_users.remove(user_id)
+            action = 'removed'
+        else:
+            # User is marking the review as helpful
+            helpful_users.append(user_id)
+            action = 'added'
+        
+        # Update the review document
+        review_doc_ref.update({
+            'helpful_users': helpful_users,
+            'helpful_count': len(helpful_users)
+        })
+        
+        return JsonResponse({
+            'message': f'Helpfulness mark {action} successfully',
+            'helpful_count': len(helpful_users),
+            'is_marked_helpful': action == 'added'
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error marking review as helpful: {str(e)}'}, status=500)
