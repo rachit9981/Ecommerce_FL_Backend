@@ -102,19 +102,102 @@ def get_all_products(request):
 # get all orders
 @csrf_exempt
 @admin_required
-def get_all_orders(request):
+def get_all_orders(request): # Removed user_id from parameters
     if request.method != 'GET':
         return JsonResponse({'error': 'Invalid request method!'}, status=405)
     try:
-        # Get orders from Firebase
-        orders_ref = db.collection('orders')
-        docs = orders_ref.stream()
-        orders = []
-        for doc in docs:
-            order_data = doc.to_dict()
-            order_data['id'] = doc.id
-            orders.append(order_data)
-        return JsonResponse({'orders': orders}, status=200)
+        all_orders = []
+        users_ref = db.collection('users').stream() # Get all users
+
+        for user_doc in users_ref:
+            user_id = user_doc.id
+            # Get orders for each user
+            orders_ref = db.collection('users').document(user_id).collection('orders').stream()
+            for order_doc in orders_ref:
+                order_data = order_doc.to_dict()
+                order_data['order_id'] = order_doc.id # Use 'order_id' for clarity
+                order_data['user_id'] = user_id # Add user_id to identify the owner of the order
+                # Optionally, you might want to add more user details here if needed
+                # e.g., user_data = user_doc.to_dict()
+                # order_data['user_email'] = user_data.get('email')
+                all_orders.append(order_data)
+        
+        return JsonResponse({'orders': all_orders}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching all orders: {str(e)}'}, status=500)
+
+@csrf_exempt
+@admin_required
+def edit_order(request, order_id):
+    """Edit an existing order by its ID (e.g., update status, items - carefully)"""
+    if request.method not in ['PUT', 'PATCH']:
+        return JsonResponse({'error': 'Invalid request method! Use PUT or PATCH.'}, status=405)
+    try:
+        data = json.loads(request.body)
+        order_ref = db.collection('orders').document(order_id)
+        
+        if not order_ref.get().exists:
+            return JsonResponse({'error': 'Order not found!'}, status=404)
+
+        # Add timestamp for last update by admin
+        data['last_updated_by_admin_at'] = firestore.SERVER_TIMESTAMP
+        
+        # Update order in Firebase
+        order_ref.update(data)
+        return JsonResponse({'message': 'Order updated successfully!', 'order_id': order_id}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def assign_order_to_delivery_partner(request, order_id):
+    """Assign an order to a delivery partner"""
+    if request.method != 'POST': # Changed to POST as it's an action
+        return JsonResponse({'error': 'Invalid request method! Use POST.'}, status=405)
+    try:
+        data = json.loads(request.body)
+        partner_id = data.get('partner_id')
+
+        if not partner_id:
+            return JsonResponse({'error': 'Partner ID is required.'}, status=400)
+
+        order_ref = db.collection('orders').document(order_id)
+        order_doc = order_ref.get()
+
+        if not order_doc.exists:
+            return JsonResponse({'error': 'Order not found!'}, status=404)
+
+        # Check if partner exists and is verified (optional, but good practice)
+        partner_ref = db.collection('delivery_partners').document(partner_id)
+        partner_doc = partner_ref.get()
+        if not partner_doc.exists or not partner_doc.to_dict().get('is_verified'):
+            return JsonResponse({'error': 'Delivery partner not found or not verified.'}, status=404)
+
+        update_data = {
+            'assigned_partner_id': partner_id,
+            'delivery_status': 'assigned', # Initial status when assigned
+            'assigned_at': firestore.SERVER_TIMESTAMP,
+            'last_updated_by_admin_at': firestore.SERVER_TIMESTAMP
+        }
+        
+        # Add to order's status history
+        order_data = order_doc.to_dict()
+        status_update_history = order_data.get('status_update_history', [])
+        status_update_history.append({
+            'status': 'assigned',
+            'timestamp': firestore.SERVER_TIMESTAMP,
+            'updated_by': 'admin',
+            'admin_id': request.admin_payload.get('admin_id'), # Assuming admin_id is in token
+            'assigned_partner_id': partner_id
+        })
+        update_data['status_update_history'] = status_update_history
+        
+        order_ref.update(update_data)
+        return JsonResponse({'message': f'Order {order_id} assigned to partner {partner_id} successfully!'}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

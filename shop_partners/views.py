@@ -126,42 +126,83 @@ def get_all_partners(request):
 
 @csrf_exempt
 @partner_required
-def delivery_assignment_list(request):
-    # This view assumes orders are assigned to partners via a 'assigned_partner_id' field in the order document
-    # and 'delivery_status' can be something like 'pending_assignment', 'assigned', 'out_for_delivery', 'delivered', 'cancelled'
-    partner_id = request.partner_id # from partner_required decorator
+def get_assigned_orders(request): # Renamed from delivery_assignment_list
+    """Fetch all orders currently assigned to the logged-in delivery partner that are not yet in a final state."""
+    partner_id = request.partner_id 
 
     try:
+        # Fetch orders assigned to the partner and are in active delivery statuses
         assigned_orders_query = db.collection(ORDERS_COLLECTION)\
                                   .where('assigned_partner_id', '==', partner_id)\
-                                  .where('delivery_status', 'in', ['assigned', 'out_for_delivery'])\
+                                  .where('delivery_status', 'in', ['assigned', 'out_for_delivery', 'failed_attempt', 'returning'])\
+                                  .order_by('assigned_at', direction=firestore.Query.DESCENDING)\
                                   .stream()
         
         orders_list = []
         for order_doc in assigned_orders_query:
             order_data = order_doc.to_dict()
             order_data['order_id'] = order_doc.id
-            orders_list.append(order_data)
+            # Add any other relevant details you want to show in the list
+            orders_list.append({
+                'order_id': order_doc.id,
+                'delivery_status': order_data.get('delivery_status'),
+                'assigned_at': order_data.get('assigned_at'),
+                'customer_name': order_data.get('shipping_address', {}).get('name'), # Example: get customer name
+                'delivery_address': order_data.get('shipping_address', {}).get('address_line_1') # Example
+            })
             
-        return JsonResponse({'assigned_deliveries': orders_list})
+        return JsonResponse({'assigned_orders': orders_list})
     except Exception as e:
-        return JsonResponse({'error': f'An error occurred while fetching assignments: {str(e)}'}, status=500)
+        # Consider logging the error
+        return JsonResponse({'error': f'An error occurred while fetching assigned orders: {str(e)}'}, status=500)
 
 @csrf_exempt
 @partner_required
-def update_delivery_status(request, order_id):
+def get_assigned_order_details(request, order_id):
+    """Fetch details of a specific order assigned to the logged-in delivery partner."""
+    partner_id = request.partner_id
+
+    try:
+        order_ref = db.collection(ORDERS_COLLECTION).document(order_id)
+        order_doc = order_ref.get()
+
+        if not order_doc.exists:
+            return JsonResponse({'error': 'Order not found'}, status=404)
+        
+        order_data = order_doc.to_dict()
+        
+        if order_data.get('assigned_partner_id') != partner_id:
+            return JsonResponse({'error': 'Access denied. This order is not assigned to you.'}, status=403)
+            
+        # Prepare detailed order information
+        # You might want to fetch product details for items, etc.
+        # For now, returning the raw order data along with the ID
+        order_data['order_id'] = order_doc.id
+            
+        return JsonResponse({'order_details': order_data})
+            
+    except Exception as e:
+        # Consider logging the error
+        return JsonResponse({'error': f'An error occurred while fetching order details: {str(e)}'}, status=500)
+
+@csrf_exempt
+@partner_required
+def update_order_status_by_partner(request, order_id): # Renamed from update_delivery_status
+    """Allows a delivery partner to update the status of an order assigned to them."""
     if request.method == 'PATCH':
         partner_id = request.partner_id
         try:
             data = json.loads(request.body)
-            new_status = data.get('status') # e.g., "out_for_delivery", "delivered", "failed_attempt"
+            new_status = data.get('status') 
+            notes = data.get('notes', '') # Optional notes from partner
 
             if not new_status:
                 return JsonResponse({'error': 'New status is required'}, status=400)
             
-            valid_statuses = ['out_for_delivery', 'delivered', 'failed_attempt', 'returning'] # Define valid statuses a partner can set
-            if new_status not in valid_statuses:
-                return JsonResponse({'error': f'Invalid status. Must be one of {valid_statuses}'}, status=400)
+            # Define valid statuses a partner can set. Admin might have more control.
+            valid_partner_statuses = ['out_for_delivery', 'delivered', 'failed_attempt', 'returning_to_warehouse'] 
+            if new_status not in valid_partner_statuses:
+                return JsonResponse({'error': f'Invalid status. Must be one of {valid_partner_statuses}'}, status=400)
 
             order_ref = db.collection(ORDERS_COLLECTION).document(order_id)
             order_doc = order_ref.get()
@@ -171,28 +212,43 @@ def update_delivery_status(request, order_id):
             
             order_data = order_doc.to_dict()
             if order_data.get('assigned_partner_id') != partner_id:
-                return JsonResponse({'error': 'Order not assigned to this partner'}, status=403)
+                return JsonResponse({'error': 'Order not assigned to this partner or access denied'}, status=403)
+
+            # Prevent updating status of already delivered or cancelled orders by partner
+            if order_data.get('delivery_status') in ['delivered', 'cancelled_by_admin', 'cancelled_by_user']:
+                 return JsonResponse({'error': f'Order is already in a final state: {order_data.get("delivery_status")}'}, status=400)
+
 
             # Update the delivery status and add a timestamped history entry
             status_update_history = order_data.get('status_update_history', [])
-            status_update_history.append({
+            history_entry = {
                 'status': new_status,
                 'timestamp': firestore.SERVER_TIMESTAMP,
                 'updated_by': 'partner',
                 'partner_id': partner_id
-            })
+            }
+            if notes:
+                history_entry['notes'] = notes
+            status_update_history.append(history_entry)
 
-            order_ref.update({
+            update_payload = {
                 'delivery_status': new_status,
                 'status_update_history': status_update_history,
-                'last_updated': firestore.SERVER_TIMESTAMP
-            })
+                'last_updated_by_partner_at': firestore.SERVER_TIMESTAMP # Specific timestamp for partner update
+            }
+            
+            # If status is 'delivered', add delivered_at timestamp
+            if new_status == 'delivered':
+                update_payload['delivered_at'] = firestore.SERVER_TIMESTAMP
+            
+            order_ref.update(update_payload)
             return JsonResponse({'message': f'Delivery status for order {order_id} updated to {new_status}.'})
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
+            # Consider logging the error
             return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    return JsonResponse({'error': 'Invalid request method. Use PATCH.'}, status=405)
 
 @csrf_exempt
 @partner_required

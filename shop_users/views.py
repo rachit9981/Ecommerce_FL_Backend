@@ -678,6 +678,41 @@ def create_razorpay_order(request):
         except ValueError:
             return JsonResponse({'error': 'Invalid amount format'}, status=400)
 
+        # Fetch address details to include in the order
+        address_ref = db.collection('users').document(user_id).collection('addresses').document(address_id)
+        address_doc = address_ref.get()
+        if not address_doc.exists:
+            return JsonResponse({'error': 'Selected address not found'}, status=400)
+        
+        address_data = address_doc.to_dict()
+
+        # Fetch product details to store with preliminary order
+        preliminary_order_items = []
+        for product_id in product_ids:
+            product_ref = db.collection('products').document(product_id)
+            product_doc = product_ref.get()
+            if product_doc.exists:
+                product_data = product_doc.to_dict()
+                
+                # Get quantity from user's cart for this product
+                cart_item_ref = db.collection('users').document(user_id).collection('cart').document(product_id)
+                cart_item_doc = cart_item_ref.get()
+                quantity = 1  # Default quantity
+                if cart_item_doc.exists:
+                    quantity = cart_item_doc.to_dict().get('quantity', 1)
+                
+                item_price = product_data.get('price', 0)
+                preliminary_order_items.append({
+                    'product_id': product_id,
+                    'name': product_data.get('name'),
+                    'image_url': product_data.get('image_url', ''),
+                    'brand': product_data.get('brand', ''),
+                    'color': product_data.get('color', ''),
+                    'quantity': quantity,
+                    'price': item_price,
+                    'total_item_price': item_price * quantity
+                })
+
         # Initialize Razorpay client
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
@@ -692,6 +727,11 @@ def create_razorpay_order(request):
         }
         razorpay_order = client.order.create(data=order_payload)
 
+        # Generate expected delivery date (5-7 days from now)
+        from datetime import datetime, timedelta
+        order_date = datetime.now()
+        est_delivery_date = order_date + timedelta(days=10)  # Default to 7 days
+
         # Store preliminary order details in Firestore (e.g., with 'pending_payment' status)
         # This helps in tracking orders even if payment fails or is abandoned.
         order_ref = db.collection('users').document(user_id).collection('orders').document()
@@ -699,11 +739,26 @@ def create_razorpay_order(request):
             'razorpay_order_id': razorpay_order['id'],
             'user_id': user_id,
             'product_ids': product_ids, # Store product IDs for now
+            'order_items': preliminary_order_items,  # Store detailed product info
+            'address': address_data,  # Store complete address information
             'address_id': address_id,
             'total_amount': amount_in_paise / 100, # Store amount in rupees
             'currency': currency,
             'status': 'pending_payment',
             'created_at': firestore.SERVER_TIMESTAMP,
+            'estimated_delivery': est_delivery_date,
+            'tracking_info': {
+                'carrier': None,
+                'tracking_number': None,
+                'tracking_url': None,
+                'status_history': [
+                    {
+                        'status': 'pending_payment',
+                        'timestamp': datetime.now(),  # Use client-side timestamp here
+                        'description': 'Order created, awaiting payment'
+                    }
+                ]
+            },
             'payment_details': None # To be filled after successful payment
         }
         order_ref.set(preliminary_order_data)
@@ -764,7 +819,6 @@ def verify_razorpay_payment(request):
         if order_data.get('razorpay_order_id') != razorpay_order_id:
              return JsonResponse({'error': 'Razorpay Order ID mismatch.'}, status=400)
 
-
         if payment_verification: # This will be True if signature is valid, None otherwise
             # Payment is successful, now update your order status and details
 
@@ -798,7 +852,11 @@ def verify_razorpay_payment(request):
                         'name': product_data.get('name'),
                         'quantity': quantity,
                         'price_at_purchase': item_price, # Price at the time of order
-                        'total_item_price': item_price * quantity
+                        'total_item_price': item_price * quantity,
+                        'image_url': product_data.get('image_url', ''),  # Add image URL
+                        'brand': product_data.get('brand', ''),  # Add brand information
+                        'color': product_data.get('color', ''),  # Add color information
+                        'model': product_data.get('model', '')  # Add model information
                     })
                     total_calculated_amount += item_price * quantity
 
@@ -824,6 +882,29 @@ def verify_razorpay_payment(request):
                 # Log discrepancy, but might proceed if signature is verified
                 print(f"Warning: Amount mismatch. Stored: {order_data.get('total_amount')}, Razorpay: {payment_details.get('amount') / 100}")
 
+            # Generate shipping details with estimated dates
+            import random
+            from datetime import datetime # Keep datetime for now()
+
+            # Update tracking info and status history
+            tracking_info = order_data.get('tracking_info', {})
+            if not tracking_info:
+                tracking_info = {
+                    'status_history': []
+                }
+                
+            tracking_info['carrier'] = None
+            tracking_info['tracking_number'] = None
+            tracking_info['tracking_url'] = ""
+            
+            # Add new status to history
+            status_history = tracking_info.get('status_history', [])
+            status_history.append({
+                'status': 'payment_successful',
+                'timestamp': datetime.now(), # Use client-side timestamp
+                'description': 'Payment received successfully'
+            })
+            tracking_info['status_history'] = status_history
 
             # Update order in Firestore
             final_order_update = {
@@ -834,9 +915,12 @@ def verify_razorpay_payment(request):
                     'method': payment_details.get('method'),
                     'status': payment_details.get('status'), # Should be 'captured'
                     'captured_at': firestore.SERVER_TIMESTAMP, # Or use payment_details.get('created_at')
+                    'card_network': payment_details.get('card', {}).get('network'),  # Add card details if available
+                    'card_last4': payment_details.get('card', {}).get('last4')
                 },
                 'order_items': order_items,
                 'total_amount_calculated': total_calculated_amount, # Store the server-calculated total
+                'tracking_info': tracking_info,
                 'updated_at': firestore.SERVER_TIMESTAMP
             }
             batch.update(order_doc_ref, final_order_update)
@@ -852,6 +936,23 @@ def verify_razorpay_payment(request):
             }, status=200)
         else:
             # Payment verification failed
+            
+            # Update tracking info and status history
+            tracking_info = order_data.get('tracking_info', {})
+            if not tracking_info:
+                tracking_info = {
+                    'status_history': []
+                }
+                
+            # Add new status to history
+            status_history = tracking_info.get('status_history', [])
+            status_history.append({
+                'status': 'payment_failed',
+                'timestamp': datetime.now(), # Use client-side timestamp
+                'description': 'Payment verification failed'
+            })
+            tracking_info['status_history'] = status_history
+            
             order_doc_ref.update({
                 'status': 'payment_failed',
                 'payment_details': {
@@ -859,6 +960,7 @@ def verify_razorpay_payment(request):
                     'razorpay_signature': razorpay_signature,
                     'error_message': 'Signature verification failed'
                 },
+                'tracking_info': tracking_info,
                 'updated_at': firestore.SERVER_TIMESTAMP
             })
             return JsonResponse({'error': 'Payment verification failed. Signature mismatch.'}, status=400)
@@ -873,12 +975,32 @@ def verify_razorpay_payment(request):
             if app_order_id_for_error:
                 order_doc_ref_error = db.collection('users').document(user_id).collection('orders').document(app_order_id_for_error)
                 if order_doc_ref_error.get().exists:
+                    order_doc = order_doc_ref_error.get()
+                    order_data = order_doc.to_dict()
+                    
+                    # Update tracking info and status history
+                    tracking_info = order_data.get('tracking_info', {})
+                    if not tracking_info:
+                        tracking_info = {
+                            'status_history': []
+                        }
+                        
+                    # Add new status to history
+                    status_history = tracking_info.get('status_history', [])
+                    status_history.append({
+                        'status': 'payment_failed',
+                        'timestamp': datetime.now(), # Use client-side timestamp
+                        'description': 'Payment verification failed (Razorpay signature error)'
+                    })
+                    tracking_info['status_history'] = status_history
+                    
                     order_doc_ref_error.update({
                         'status': 'payment_failed',
                         'payment_details': {
                             'razorpay_payment_id': data.get('razorpay_payment_id'),
                             'error_message': 'Signature verification failed (Razorpay lib error)'
                         },
+                        'tracking_info': tracking_info,
                         'updated_at': firestore.SERVER_TIMESTAMP
                     })
         except Exception as e_inner:
@@ -901,13 +1023,29 @@ def get_user_orders(request):
         orders_list = []
         for order_doc in orders_ref:
             order_data = order_doc.to_dict()
+            
+            # Format timestamps for consistent display
+            created_at = order_data.get('created_at')
+            created_at_formatted = None
+            if created_at:
+                created_at_formatted = created_at.strftime('%m/%d/%Y at %H:%M %p') if hasattr(created_at, 'strftime') else None
+                
+            # Get first item image for preview
+            order_items = order_data.get('order_items', [])
+            preview_image = None
+            if order_items:
+                preview_image = order_items[0].get('image_url')
+            
             orders_list.append({
                 'order_id': order_doc.id,
                 'status': order_data.get('status'),
                 'total_amount': order_data.get('total_amount'),
-                'currency': order_data.get('currency'),
-                'created_at': order_data.get('created_at'),
-                'item_count': len(order_data.get('order_items', []))
+                'currency': order_data.get('currency', 'INR'),
+                'created_at': created_at_formatted or order_data.get('created_at'),
+                'item_count': len(order_items),
+                'preview_image': preview_image,
+                'tracking_info': order_data.get('tracking_info', {}),
+                'estimated_delivery': order_data.get('estimated_delivery')
             })
 
         return JsonResponse({'orders': orders_list}, status=200)
@@ -935,11 +1073,97 @@ def get_order_details(request, order_id):
         if order_data.get('user_id') != user_id:
              return JsonResponse({'error': 'Order not found or access denied'}, status=404)
 
+        # Format the timestamps for better readability
+        created_at = order_data.get('created_at')
+        if created_at:
+            if hasattr(created_at, 'strftime'):
+                order_data['created_at_formatted'] = created_at.strftime('%m/%d/%Y at %H:%M %p')
+        
+        # Format the payment capture timestamp
+        payment_details = order_data.get('payment_details', {})
+        if payment_details and payment_details.get('captured_at'):
+            captured_at = payment_details.get('captured_at')
+            if hasattr(captured_at, 'strftime'):
+                payment_details['captured_at_formatted'] = captured_at.strftime('%m/%d/%Y at %H:%M %p')
+        
+        # Format estimated delivery date
+        estimated_delivery = order_data.get('estimated_delivery')
+        if estimated_delivery:
+            if hasattr(estimated_delivery, 'strftime'):
+                order_data['estimated_delivery_formatted'] = estimated_delivery.strftime('%m/%d/%Y')
+        
+        # Process status history timestamps
+        tracking_info = order_data.get('tracking_info', {})
+        status_history = tracking_info.get('status_history', [])
+        for status in status_history:
+            timestamp = status.get('timestamp')
+            if timestamp and hasattr(timestamp, 'strftime'):
+                status['timestamp_formatted'] = timestamp.strftime('%m/%d/%Y at %H:%M %p')
+        
+        # Get shipping address if not already included
+        if 'address' not in order_data and 'address_id' in order_data:
+            address_id = order_data.get('address_id')
+            address_doc = db.collection('users').document(user_id).collection('addresses').document(address_id).get()
+            if address_doc.exists:
+                order_data['address'] = address_doc.to_dict()
 
         return JsonResponse({'order_details': order_data}, status=200)
 
     except Exception as e:
         return JsonResponse({'error': f'Error fetching order details: {str(e)}'}, status=500)
+
+# @user_required
+# @csrf_exempt # GET requests are generally not CSRF vulnerable, but good practice if any state changes
+# def get_user_orders(request):
+#     if request.method != 'GET':
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#     try:
+#         user_id = request.user_id
+#         orders_ref = db.collection('users').document(user_id).collection('orders').order_by('created_at', direction=firestore.Query.DESCENDING).stream()
+
+#         orders_list = []
+#         for order_doc in orders_ref:
+#             order_data = order_doc.to_dict()
+#             orders_list.append({
+#                 'order_id': order_doc.id,
+#                 'status': order_data.get('status'),
+#                 'total_amount': order_data.get('total_amount'),
+#                 'currency': order_data.get('currency'),
+#                 'created_at': order_data.get('created_at'),
+#                 'item_count': len(order_data.get('order_items', []))
+#             })
+
+#         return JsonResponse({'orders': orders_list}, status=200)
+
+#     except Exception as e:
+#         return JsonResponse({'error': f'Error fetching orders: {str(e)}'}, status=500)
+
+# @user_required
+# @csrf_exempt # As above
+# def get_order_details(request, order_id):
+#     if request.method != 'GET':
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#     try:
+#         user_id = request.user_id
+#         order_doc_ref = db.collection('users').document(user_id).collection('orders').document(order_id)
+#         order_doc = order_doc_ref.get()
+
+#         if not order_doc.exists:
+#             return JsonResponse({'error': 'Order not found or access denied'}, status=404)
+
+#         order_data = order_doc.to_dict()
+        
+#         # Ensure the order belongs to the user (already implicitly handled by Firestore path, but good for clarity)
+#         if order_data.get('user_id') != user_id:
+#              return JsonResponse({'error': 'Order not found or access denied'}, status=404)
+
+
+#         return JsonResponse({'order_details': order_data}, status=200)
+
+#     except Exception as e:
+#         return JsonResponse({'error': f'Error fetching order details: {str(e)}'}, status=500)
 
 @user_required
 @csrf_exempt
