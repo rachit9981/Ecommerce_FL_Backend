@@ -17,7 +17,7 @@ import json # Import json for parsing specifications
 @csrf_exempt
 def insert_products_from_csv(request):
     # Path to the JSON file
-    file_path = 'c:/Users/Anubhav Choubey/Documents/New_Freelance_Ecommerce_Work/Ecommerce_FL_Backend/products.json'
+    file_path = './products/products.json'
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
