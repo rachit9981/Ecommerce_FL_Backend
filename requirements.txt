@@ -4,6 +4,7 @@ cachetools==5.5.2
 certifi==2025.4.26
 cffi==1.17.1
 charset-normalizer==3.4.2
+cloudinary==1.41.0
 coreapi==2.3.3
 coreschema==0.0.4
 cryptography==45.0.2
@@ -43,6 +44,7 @@ PyJWT==2.10.1
 pyparsing==3.2.3
 python-dotenv==1.1.0
 PyYAML==6.0.2
+razorpay==1.4.2
 requests==2.32.3
 rsa==4.9.1
 sqlparse==0.5.3

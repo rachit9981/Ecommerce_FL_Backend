@@ -4,9 +4,10 @@ from .models import ShopAdmin
 from django.contrib.auth.hashers import make_password, check_password
 import json
 import jwt
-from .utils import admin_required
+from .utils import admin_required, upload_image_to_cloudinary_util
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore
+from datetime import datetime
 
 # Get Firebase client
 db = firestore.client()
@@ -79,6 +80,8 @@ def get_all_users(request):
         return JsonResponse({'users': users}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
     
 # get all products
 @csrf_exempt
@@ -102,19 +105,130 @@ def get_all_products(request):
 # get all orders
 @csrf_exempt
 @admin_required
-def get_all_orders(request):
+def get_all_orders(request): # Removed user_id from parameters
     if request.method != 'GET':
         return JsonResponse({'error': 'Invalid request method!'}, status=405)
     try:
-        # Get orders from Firebase
-        orders_ref = db.collection('orders')
-        docs = orders_ref.stream()
-        orders = []
-        for doc in docs:
-            order_data = doc.to_dict()
-            order_data['id'] = doc.id
-            orders.append(order_data)
-        return JsonResponse({'orders': orders}, status=200)
+        all_orders = []
+        users_ref = db.collection('users').stream() # Get all users
+
+        for user_doc in users_ref:
+            user_id = user_doc.id
+            # Get orders for each user
+            orders_ref = db.collection('users').document(user_id).collection('orders').stream()
+            for order_doc in orders_ref:
+                order_data = order_doc.to_dict()
+                order_data['order_id'] = order_doc.id # Use 'order_id' for clarity
+                order_data['user_id'] = user_id # Add user_id to identify the owner of the order
+                # Optionally, you might want to add more user details here if needed
+                # e.g., user_data = user_doc.to_dict()
+                # order_data['user_email'] = user_data.get('email')
+                all_orders.append(order_data)
+        
+        return JsonResponse({'orders': all_orders}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching all orders: {str(e)}'}, status=500)
+
+# Add timestamp for last update by admin
+from datetime import datetime
+        
+@csrf_exempt
+@admin_required
+def edit_order(request, user_id, order_id):
+    """Edit an existing order by its ID for a specific user (e.g., update status, items - carefully)"""
+    if request.method not in ['PUT', 'PATCH']:
+        return JsonResponse({'error': 'Invalid request method! Use PUT or PATCH.'}, status=405)
+    try:
+        data = json.loads(request.body)
+        # Ensure user_id is present, though it's from the URL
+        if not user_id:
+            return JsonResponse({'error': 'User ID is required in the path.'}, status=400)
+
+        order_ref = db.collection('users').document(user_id).collection('orders').document(order_id)
+        
+        if not order_ref.get().exists:
+            return JsonResponse({'error': f'Order not found for user {user_id}!'}, status=404)
+
+        
+        data['last_updated_by_admin_at'] = datetime.now()
+        
+        # Update order in Firebase
+        order_ref.update(data)
+        return JsonResponse({'message': 'Order updated successfully!', 'user_id': user_id, 'order_id': order_id}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def assign_order_to_delivery_partner(request, user_id, order_id):
+    """Assign an order for a specific user to a delivery partner"""
+    if request.method != 'POST': 
+        return JsonResponse({'error': 'Invalid request method! Use POST.'}, status=405)
+    try:
+        data = json.loads(request.body)
+        print('data:', data)  # Debugging line to check incoming data
+        partner_id = data.get('partner_id')
+
+        if not partner_id:
+            return JsonResponse({'error': 'Partner ID is required.'}, status=400)
+        
+        # Ensure user_id is present
+        if not user_id:
+            return JsonResponse({'error': 'User ID is required in the path.'}, status=400)
+
+        order_ref = db.collection('users').document(user_id).collection('orders').document(order_id)
+        order_doc = order_ref.get()
+
+        if not order_doc.exists:
+            return JsonResponse({'error': f'Order not found for user {user_id}!'}, status=404)
+
+        # Check if partner exists and is verified
+        partner_ref = db.collection('delivery_partners').document(partner_id)
+        partner_doc = partner_ref.get()
+        if not partner_doc.exists:
+            return JsonResponse({'error': 'Delivery partner not found.'}, status=404)
+        
+        partner_data = partner_doc.to_dict()
+        if not partner_data.get('is_verified'):
+            return JsonResponse({'error': 'Delivery partner not verified.'}, status=404)
+        
+        partner_name = partner_data.get('name', 'N/A') # Get partner name, default to N/A if not found
+
+        update_data = {
+            'assigned_partner_id': partner_id,
+            'assigned_partner_name': partner_name, # Add partner name to the order
+            'assigned_at': datetime.now(),  # Uses client-side timestamp
+            'last_updated_by_admin_at': firestore.SERVER_TIMESTAMP # Uses server-side timestamp
+        }
+        
+        order_data = order_doc.to_dict()
+        # Ensure status_update_history is initialized if it doesn't exist
+        tracking_info = order_data.get('tracking_info', {})
+        status_update_history = tracking_info.get('status_history', [])
+        
+        status_update_history.append({
+            'timestamp': datetime.now(),  # Use client-side timestamp for history entries
+            'updated_by': 'admin',
+            'admin_id': request.admin_payload.get('admin_id'), 
+            'assigned_partner_id': partner_id,
+            'assigned_partner_name': partner_name, # Add partner name to history
+            'description': f'Order assigned to delivery partner {partner_name} (ID: {partner_id}) by admin.'
+        })
+        
+        # Ensure tracking_info structure is correctly updated
+        if 'tracking_info' not in order_data:
+            order_data['tracking_info'] = {}
+        order_data['tracking_info']['status_history'] = status_update_history
+        
+        # Merge update_data with the modified tracking_info
+        update_data['tracking_info'] = order_data['tracking_info']
+        
+        order_ref.update(update_data)
+        return JsonResponse({'message': f'Order {order_id} for user {user_id} assigned to partner {partner_name} (ID: {partner_id}) successfully!'}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -271,5 +385,220 @@ def ban_user(request, user_id):
         user_ref.update({'is_banned': new_is_banned})
 
         return JsonResponse({'message': f'User ban status updated successfully!', 'user_id': user_id, 'is_banned': new_is_banned}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def get_user_by_id(request, user_id):
+    """Get a user by their ID"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        user_ref = db.collection('users').document(user_id)
+        user_doc = user_ref.get()
+
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            user_data['id'] = user_doc.id  # Add the document ID to the response
+            return JsonResponse({'user': user_data}, status=200)
+        else:
+            return JsonResponse({'error': 'User not found!'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+## Views for banner management
+
+@csrf_exempt
+@admin_required
+def get_all_banners(request):
+    """Get all banners"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Get banners from Firebase
+        banners_ref = db.collection('banners')
+        docs = banners_ref.stream()
+        banners = []
+        for doc in docs:
+            banner_data = doc.to_dict()
+            banner_data['id'] = doc.id
+            banners.append(banner_data)
+        
+        # Sort by created_at if available, otherwise by position
+        banners.sort(key=lambda x: x.get('created_at', x.get('position', 'hero')))
+        return JsonResponse({'banners': banners}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def add_banner(request):
+    """Add a new banner"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Handle multipart/form-data for file uploads
+        data = request.POST.dict()  # Get form data
+        image_file = request.FILES.get('image_file')  # Get uploaded file
+        
+        # Basic validation
+        required_fields = ['title', 'position']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        if not image_file:
+            return JsonResponse({'error': 'Image file is required'}, status=400)
+        
+        # Upload image to Cloudinary
+        image_url = upload_image_to_cloudinary_util(image_file, folder_name="banners")
+        if not image_url:
+            return JsonResponse({'error': 'Failed to upload image'}, status=500)
+        
+        # Prepare banner data
+        banner_data = {
+            'title': data.get('title'),
+            'subtitle': data.get('subtitle', ''),
+            'description': data.get('description', ''),
+            'image': image_url,  # Use uploaded image URL
+            'link': data.get('link', ''),
+            'position': data.get('position'),
+            'tag': data.get('tag', ''),
+            'cta': data.get('cta', ''),
+            'backgroundColor': data.get('backgroundColor', '#ffffff'),
+            'active': data.get('active', 'true').lower() == 'true',
+            'created_at': datetime.now(),
+            'updated_at': datetime.now()
+        }
+        
+        # Add banner to Firebase
+        doc_ref = db.collection('banners').add(banner_data)[1]
+        return JsonResponse({'message': 'Banner added successfully!', 'banner_id': doc_ref.id}, status=201)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def edit_banner(request, banner_id):
+    """Edit an existing banner by its ID"""
+    if request.method not in ['PUT', 'PATCH']:
+        return JsonResponse({'error': 'Invalid request method! Use PUT or PATCH.'}, status=405)
+    try:
+        banner_ref = db.collection('banners').document(banner_id)
+        
+        if not banner_ref.get().exists:
+            return JsonResponse({'error': 'Banner not found!'}, status=404)
+
+        # Handle both JSON and multipart/form-data
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Handle file upload
+            data = request.POST.dict()  # Get form data
+            image_file = request.FILES.get('image_file')  # Get uploaded file
+            
+            update_data = {}
+            
+            # Update text fields if provided
+            for field in ['title', 'subtitle', 'description', 'link', 'position', 'tag', 'cta', 'backgroundColor']:
+                if field in data:
+                    update_data[field] = data[field]
+            
+            # Handle boolean field
+            if 'active' in data:
+                update_data['active'] = data['active'].lower() == 'true'
+            
+            # Upload new image if provided
+            if image_file:
+                image_url = upload_image_to_cloudinary_util(image_file, folder_name="banners")
+                if not image_url:
+                    return JsonResponse({'error': 'Failed to upload image'}, status=500)
+                update_data['image'] = image_url
+        else:
+            # Handle JSON data (for non-file updates)
+            data = json.loads(request.body)
+            update_data = data.copy()
+
+        # Add update timestamp
+        update_data['updated_at'] = datetime.now()
+        
+        # Update banner in Firebase
+        banner_ref.update(update_data)
+        return JsonResponse({'message': 'Banner updated successfully!', 'banner_id': banner_id}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def delete_banner(request, banner_id):
+    """Delete a banner by its ID"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Delete banner from Firebase
+        banner_ref = db.collection('banners').document(banner_id)
+        if banner_ref.get().exists:
+            banner_ref.delete()
+            return JsonResponse({'message': 'Banner deleted successfully!'}, status=200)
+        else:
+            return JsonResponse({'error': 'Banner not found!'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def toggle_banner_active(request, banner_id):
+    """Toggle the 'active' field of a banner by its ID"""
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Get the banner reference from Firebase
+        banner_ref = db.collection('banners').document(banner_id)
+        banner = banner_ref.get()
+
+        if not banner.exists:
+            return JsonResponse({'error': 'Banner not found!'}, status=404)
+
+        # Get the current banner data
+        banner_data = banner.to_dict()
+
+        # Toggle the 'active' field
+        current_active = banner_data.get('active', True)
+        new_active = not current_active
+
+        # Update the banner in Firebase
+        banner_ref.update({
+            'active': new_active,
+            'updated_at': datetime.now()
+        })
+
+        return JsonResponse({'message': 'Banner status updated!', 'active': new_active}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_public_banners(request):
+    """Get all active banners for public display"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Get only active banners from Firebase
+        banners_ref = db.collection('banners').where('active', '==', True)
+        docs = banners_ref.stream()
+        banners = []
+        for doc in docs:
+            banner_data = doc.to_dict()
+            banner_data['id'] = doc.id
+            banners.append(banner_data)
+        
+        # Sort by position and created_at
+        position_order = {'hero': 0, 'home-middle': 1, 'home-bottom': 2, 'category-top': 3, 'sidebar': 4}
+        banners.sort(key=lambda x: (
+            position_order.get(x.get('position', 'hero'), 999),
+            x.get('created_at', datetime.min)
+        ))
+        
+        return JsonResponse({'banners': banners}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

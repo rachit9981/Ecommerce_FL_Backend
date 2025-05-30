@@ -3,6 +3,9 @@ import logging
 from functools import wraps
 from django.http import JsonResponse
 from anand_mobiles.settings import SECRET_KEY
+import cloudinary
+from anand_mobiles.settings import CLOUDINARY_URL
+import cloudinary.uploader
 
 # Set up logger for admin authentication
 logger = logging.getLogger(__name__)
@@ -23,6 +26,7 @@ def admin_required(view_func):
     def wrapper(request, *args, **kwargs):
         # Get the authorization header
         auth_header = request.headers.get('Authorization')
+        print(f"Authorization header: {auth_header}")  # Debugging line
         
         # Check for missing or malformed authorization header
         if not auth_header:
@@ -95,3 +99,44 @@ def admin_required(view_func):
             }, status=401)
     
     return wrapper
+
+def upload_image_to_cloudinary_util(image_file, folder_name="shop_images"):
+    """
+    Uploads an image file to Cloudinary and returns its secure URL.
+
+    Args:
+        image_file: The image file object to upload (e.g., request.FILES['image']).
+        folder_name (str): The name of the folder in Cloudinary to upload the image to.
+
+    Returns:
+        str: The secure URL of the uploaded image, or None if upload fails.
+    """
+    if not image_file:
+        logger.error("No image file provided for Cloudinary upload.")
+        return None
+
+    try:
+        # Configure Cloudinary using CLOUDINARY_URL from settings.py
+        if CLOUDINARY_URL:
+            cloudinary.config(cloudinary_url=CLOUDINARY_URL, secure=True)
+        else:
+            logger.error("CLOUDINARY_URL is not set in settings.")
+            return None
+
+        upload_result = cloudinary.uploader.upload(
+            image_file,
+            folder=folder_name,
+            # Additional upload options can be added here
+        )
+        
+        secure_url = upload_result.get('secure_url')
+        
+        if secure_url:
+            logger.info(f"Image uploaded successfully to Cloudinary: {secure_url}")
+            return secure_url
+        else:
+            logger.error("Failed to upload image to Cloudinary. No secure_url in response.")
+            return None
+    except Exception as e:
+        logger.error(f"Error uploading image to Cloudinary: {str(e)}")
+        return None
