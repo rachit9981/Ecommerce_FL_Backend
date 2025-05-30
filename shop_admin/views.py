@@ -490,39 +490,31 @@ def edit_banner(request, banner_id):
         if not banner_ref.get().exists:
             return JsonResponse({'error': 'Banner not found!'}, status=404)
 
-        # Handle both JSON and multipart/form-data
+        # Check if request is multipart/form-data or JSON
         if request.content_type and 'multipart/form-data' in request.content_type:
-            # Handle file upload
-            data = request.POST.dict()  # Get form data
-            image_file = request.FILES.get('image_file')  # Get uploaded file
+            # Handle form data
+            data = request.POST.dict()
+            image_file = request.FILES.get('image_file')
             
-            update_data = {}
-            
-            # Update text fields if provided
-            for field in ['title', 'subtitle', 'description', 'link', 'position', 'tag', 'cta', 'backgroundColor']:
-                if field in data:
-                    update_data[field] = data[field]
-            
-            # Handle boolean field
-            if 'active' in data:
-                update_data['active'] = data['active'].lower() == 'true'
-            
-            # Upload new image if provided
+            # If there's an image file, upload it to Cloudinary
             if image_file:
                 image_url = upload_image_to_cloudinary_util(image_file, folder_name="banners")
                 if not image_url:
                     return JsonResponse({'error': 'Failed to upload image'}, status=500)
-                update_data['image'] = image_url
+                data['image'] = image_url
         else:
-            # Handle JSON data (for non-file updates)
+            # Handle JSON data
             data = json.loads(request.body)
-            update_data = data.copy()
 
         # Add update timestamp
-        update_data['updated_at'] = datetime.now()
+        data['updated_at'] = datetime.now()
         
+        # Handle boolean fields properly
+        if 'active' in data and isinstance(data['active'], str):
+            data['active'] = data['active'].lower() == 'true'
+            
         # Update banner in Firebase
-        banner_ref.update(update_data)
+        banner_ref.update(data)
         return JsonResponse({'message': 'Banner updated successfully!', 'banner_id': banner_id}, status=200)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
