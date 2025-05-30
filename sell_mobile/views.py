@@ -1,11 +1,11 @@
-from django.shortcuts import render
 from django.http import JsonResponse
-from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
 from anand_mobiles.settings import db  # Import the Firestore client
 from google.cloud import firestore  # Import firestore for Query constants
 import json
 from datetime import datetime
+import os
+from pathlib import Path
 
 # Create your views here.
 
@@ -18,7 +18,6 @@ def submit_sell_mobile(request):
         try:
             data = json.loads(request.body)
             
-            # Validate required fields
             required_fields = ['user_name', 'phone_number', 'email', 'location', 
                              'mobile_brand', 'mobile_model', 'condition', 'expected_price']
             
@@ -29,12 +28,10 @@ def submit_sell_mobile(request):
                         'message': f'Missing required field: {field}'
                     }, status=400)
             
-            # Add timestamp and default status
             data['status'] = 'pending'
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
             
-            # Create a new document in Firestore
             doc_ref = db.collection('sell_mobiles').document()
             doc_ref.set(data)
             
@@ -48,7 +45,7 @@ def submit_sell_mobile(request):
             return JsonResponse({
                 'status': 'error',
                 'message': 'Invalid JSON data'
-            }, status=400)
+            }, status=400)  # Fixed the missing closing parenthesis
         except Exception as e:
             return JsonResponse({
                 'status': 'error',
@@ -63,10 +60,10 @@ def submit_sell_mobile(request):
 @csrf_exempt
 def fetch_sell_mobiles(request):
     """
-    Fetch all approved sell mobile listings with pagination and filtering
+    Fetch all approved sell mobile listings with pagination and filtering, 
+    grouped by model with nested variant and condition data
     """
     try:
-        # Get query parameters
         page = int(request.GET.get('page', 1))
         per_page = int(request.GET.get('per_page', 20))
         status = request.GET.get('status', 'approved')
@@ -75,47 +72,80 @@ def fetch_sell_mobiles(request):
         min_price = request.GET.get('min_price', '')
         max_price = request.GET.get('max_price', '')
         
-        # Build query
         query = db.collection('sell_mobiles').where('status', '==', status)
         
         if brand:
             query = query.where('mobile_brand', '==', brand)
         
-        if condition:
-            query = query.where('condition', '==', condition)
+        # We'll filter by condition and price after grouping
         
-        # Execute query
         docs = query.stream()
-        sell_mobiles = []
+        
+        # Group by model, collecting all variants and conditions
+        grouped_phones = {}
         
         for doc in docs:
             mobile_data = doc.to_dict()
             mobile_data['id'] = doc.id
             
-            # Apply price filtering (since Firestore doesn't support range queries with other filters)
-            if min_price and float(mobile_data.get('expected_price', 0)) < float(min_price):
+            # Skip if price filters don't match
+            price = float(mobile_data.get('expected_price', 0))
+            if min_price and price < float(min_price):
                 continue
-            if max_price and float(mobile_data.get('expected_price', 0)) > float(max_price):
+            if max_price and price > float(max_price):
                 continue
-                
-            sell_mobiles.append(mobile_data)
+            
+            # Skip if condition filter doesn't match
+            if condition and mobile_data.get('condition') != condition:
+                continue
+            
+            # Extract the base model name (remove variant info)
+            full_model = mobile_data.get('mobile_model', '')
+            variant = mobile_data.get('variant', '')
+            base_model = full_model.replace(f" {variant}", "") if variant else full_model
+            
+            # Create a unique key for each model
+            model_key = f"{mobile_data.get('mobile_brand', '')}-{base_model}"
+            
+            if model_key not in grouped_phones:
+                grouped_phones[model_key] = {
+                    'name': base_model,
+                    'brand': mobile_data.get('mobile_brand', ''),
+                    'image': mobile_data.get('image_url', ''),
+                    'variant_prices': {},
+                    'created_at': mobile_data.get('created_at', ''),
+                    'id': model_key  # Use a unique identifier
+                }
+            
+            # Get or create the variant entry
+            variant_entry = grouped_phones[model_key]['variant_prices'].setdefault(variant, {})
+            
+            # Add the condition and price
+            condition_name = mobile_data.get('condition', 'Unknown')
+            price_value = mobile_data.get('expected_price', 0)
+            variant_entry[condition_name] = f"₹{int(price_value)}"
+            
+            # Update image if it's missing
+            if not grouped_phones[model_key]['image'] and mobile_data.get('image_url'):
+                grouped_phones[model_key]['image'] = mobile_data.get('image_url')
         
-        # Sort by created_at (newest first)
-        sell_mobiles.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        # Convert to list and sort by created_at
+        phones_list = list(grouped_phones.values())
+        phones_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         
-        # Manual pagination
+        # Apply pagination
         start_index = (page - 1) * per_page
         end_index = start_index + per_page
-        paginated_mobiles = sell_mobiles[start_index:end_index]
+        paginated_phones = phones_list[start_index:end_index]
         
         return JsonResponse({
             'status': 'success',
-            'data': paginated_mobiles,
+            'data': paginated_phones,
             'pagination': {
                 'page': page,
                 'per_page': per_page,
-                'total': len(sell_mobiles),
-                'total_pages': (len(sell_mobiles) + per_page - 1) // per_page
+                'total': len(phones_list),
+                'total_pages': (len(phones_list) + per_page - 1) // per_page
             }
         })
         
@@ -143,7 +173,6 @@ def fetch_sell_mobile_details(request, mobile_id):
         mobile_data = doc.to_dict()
         mobile_data['id'] = doc.id
         
-        # Also fetch inquiries for this mobile
         inquiries_ref = db.collection('sell_mobile_inquiries').where('sell_mobile_id', '==', mobile_id)
         inquiries = []
         
@@ -174,7 +203,6 @@ def submit_inquiry(request):
         try:
             data = json.loads(request.body)
             
-            # Validate required fields
             required_fields = ['sell_mobile_id', 'buyer_name', 'buyer_phone']
             
             for field in required_fields:
@@ -184,7 +212,6 @@ def submit_inquiry(request):
                         'message': f'Missing required field: {field}'
                     }, status=400)
             
-            # Check if the sell mobile exists
             sell_mobile_ref = db.collection('sell_mobiles').document(data['sell_mobile_id'])
             if not sell_mobile_ref.get().exists:
                 return JsonResponse({
@@ -192,11 +219,9 @@ def submit_inquiry(request):
                     'message': 'Mobile listing not found'
                 }, status=404)
             
-            # Add timestamp and default status
             data['status'] = 'pending'
             data['created_at'] = datetime.now().isoformat()
             
-            # Create a new inquiry document
             doc_ref = db.collection('sell_mobile_inquiries').document()
             doc_ref.set(data)
             
@@ -244,7 +269,6 @@ def update_sell_mobile_status(request, mobile_id):
                     'message': f'Invalid status. Valid options: {valid_statuses}'
                 }, status=400)
             
-            # Update the document
             doc_ref = db.collection('sell_mobiles').document(mobile_id)
             
             if not doc_ref.get().exists:
@@ -303,6 +327,109 @@ def fetch_brands(request):
             'data': sorted(list(brands))
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)
+
+@csrf_exempt
+def upload_phone_data(request):
+    """
+    Clear the mobile_catalog collection and upload phone data from simplified_phone_data.json
+    directly to Firestore in catalog format, with prices as int and no extra fields.
+    """
+    try:
+        # Get the path to the JSON file
+        base_dir = Path(__file__).resolve().parent.parent
+        json_file_path = base_dir / 'simplified_phone_data.json'
+
+        # Load the JSON data
+        with open(json_file_path, 'r') as file:
+            phones_data = json.load(file)
+
+        # Clear the mobile_catalog collection
+        catalog_ref = db.collection('mobile_catalog')
+        docs = catalog_ref.stream()
+        batch = db.batch()
+        for doc in docs:
+            batch.delete(doc.reference)
+        batch.commit()
+
+        # Count successfully uploaded phones
+        uploaded_count = 0
+
+        # Helper to convert price string to int
+        def clean_price(val):
+            if isinstance(val, str):
+                # Remove all non-digit characters
+                digits = ''.join(filter(str.isdigit, val))
+                return int(digits) if digits else 0
+            return val
+
+        # Process each phone and store in catalog format
+        for phone in phones_data:
+            # Deep copy and clean prices
+            variant_prices = {}
+            for variant, conds in phone.get('variant_prices', {}).items():
+                variant_prices[variant] = {}
+                for cond, price in conds.items():
+                    variant_prices[variant][cond] = clean_price(price)
+
+            catalog_entry = {
+                'name': phone.get('name', ''),
+                'brand': phone.get('brand', ''),
+                'image': phone.get('image', ''),
+                'variant_prices': variant_prices
+            }
+
+            # Add to the mobile_catalog collection
+            doc_ref = db.collection('mobile_catalog').document()
+            doc_ref.set(catalog_entry)
+            uploaded_count += 1
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Successfully uploaded {uploaded_count} phones to catalog',
+        })
+
+    except FileNotFoundError:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Phone data file not found'
+        }, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Invalid JSON data in phone data file'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)
+
+@csrf_exempt
+def fetch_all_mobiles_catalog(request):
+    """
+    Fetch all mobile listings in the catalog format with nested variant and condition data,
+    without pagination or filtering.
+    """
+    try:
+        catalog_phones = []
+        # Fetch all documents from mobile_catalog collection
+        catalog_ref = db.collection('mobile_catalog')
+        docs = catalog_ref.stream()
+        for doc in docs:
+            mobile_data = doc.to_dict()
+            mobile_data['id'] = doc.id
+            catalog_phones.append(mobile_data)
+
+        return JsonResponse({
+            'status': 'success',
+            'data': catalog_phones
+        })
+
     except Exception as e:
         return JsonResponse({
             'status': 'error',

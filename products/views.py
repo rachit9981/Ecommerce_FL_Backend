@@ -156,7 +156,6 @@ def fetch_product_details(request, product_id):
         for review_doc in reviews_ref:
             review_data = review_doc.to_dict()
             review_data['id'] = review_doc.id
-            # Convert timestamp to string for JSON serialization
             if 'created_at' in review_data and review_data['created_at']:
                 review_data['created_at'] = review_data['created_at'].isoformat()
             reviews.append(review_data)
