@@ -14,8 +14,17 @@ urlpatterns = [
     path('delete-product/<str:product_id>/', delete_product, name='delete_product'),
     path('products/add/', add_product, name='add_product'),
     path('products/edit/<str:product_id>/', edit_product, name='edit_product'),
-    path('users/ban/<str:user_id>/', ban_user, name='ban_user'),path('users/<str:user_id>/', get_user_by_id, name='get_user_by_id'),
-    path('users/<str:user_id>/orders/<str:order_id>/assign-partner/', assign_order_to_delivery_partner, name='assign_order_to_delivery_partner'),
+    path('users/ban/<str:user_id>/', ban_user, name='ban_user'),path('users/<str:user_id>/', get_user_by_id, name='get_user_by_id'),    path('users/<str:user_id>/orders/<str:order_id>/assign-partner/', assign_order_to_delivery_partner, name='assign_order_to_delivery_partner'),
     path('users/<str:user_id>/orders/<str:order_id>/edit/', edit_order, name='edit_order'),
+    
+    # Banner management URLs
+    path('banners/', get_all_banners, name='get_all_banners'),
+    path('banners/add/', add_banner, name='add_banner'),
+    path('banners/edit/<str:banner_id>/', edit_banner, name='edit_banner'),
+    path('banners/delete/<str:banner_id>/', delete_banner, name='delete_banner'),
+    path('banners/toggle/<str:banner_id>/', toggle_banner_active, name='toggle_banner_active'),
+    
+    # Public banner endpoint (no auth required)
+    path('banners/public/', get_public_banners, name='get_public_banners'),
 
 ]

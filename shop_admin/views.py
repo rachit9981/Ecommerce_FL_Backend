@@ -4,9 +4,10 @@ from .models import ShopAdmin
 from django.contrib.auth.hashers import make_password, check_password
 import json
 import jwt
-from .utils import admin_required
+from .utils import admin_required, upload_image_to_cloudinary_util
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore
+from datetime import datetime
 
 # Get Firebase client
 db = firestore.client()
@@ -403,5 +404,201 @@ def get_user_by_id(request, user_id):
             return JsonResponse({'user': user_data}, status=200)
         else:
             return JsonResponse({'error': 'User not found!'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+## Views for banner management
+
+@csrf_exempt
+@admin_required
+def get_all_banners(request):
+    """Get all banners"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Get banners from Firebase
+        banners_ref = db.collection('banners')
+        docs = banners_ref.stream()
+        banners = []
+        for doc in docs:
+            banner_data = doc.to_dict()
+            banner_data['id'] = doc.id
+            banners.append(banner_data)
+        
+        # Sort by created_at if available, otherwise by position
+        banners.sort(key=lambda x: x.get('created_at', x.get('position', 'hero')))
+        return JsonResponse({'banners': banners}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def add_banner(request):
+    """Add a new banner"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Handle multipart/form-data for file uploads
+        data = request.POST.dict()  # Get form data
+        image_file = request.FILES.get('image_file')  # Get uploaded file
+        
+        # Basic validation
+        required_fields = ['title', 'position']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        if not image_file:
+            return JsonResponse({'error': 'Image file is required'}, status=400)
+        
+        # Upload image to Cloudinary
+        image_url = upload_image_to_cloudinary_util(image_file, folder_name="banners")
+        if not image_url:
+            return JsonResponse({'error': 'Failed to upload image'}, status=500)
+        
+        # Prepare banner data
+        banner_data = {
+            'title': data.get('title'),
+            'subtitle': data.get('subtitle', ''),
+            'description': data.get('description', ''),
+            'image': image_url,  # Use uploaded image URL
+            'link': data.get('link', ''),
+            'position': data.get('position'),
+            'tag': data.get('tag', ''),
+            'cta': data.get('cta', ''),
+            'backgroundColor': data.get('backgroundColor', '#ffffff'),
+            'active': data.get('active', 'true').lower() == 'true',
+            'created_at': datetime.now(),
+            'updated_at': datetime.now()
+        }
+        
+        # Add banner to Firebase
+        doc_ref = db.collection('banners').add(banner_data)[1]
+        return JsonResponse({'message': 'Banner added successfully!', 'banner_id': doc_ref.id}, status=201)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def edit_banner(request, banner_id):
+    """Edit an existing banner by its ID"""
+    if request.method not in ['PUT', 'PATCH']:
+        return JsonResponse({'error': 'Invalid request method! Use PUT or PATCH.'}, status=405)
+    try:
+        banner_ref = db.collection('banners').document(banner_id)
+        
+        if not banner_ref.get().exists:
+            return JsonResponse({'error': 'Banner not found!'}, status=404)
+
+        # Handle both JSON and multipart/form-data
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Handle file upload
+            data = request.POST.dict()  # Get form data
+            image_file = request.FILES.get('image_file')  # Get uploaded file
+            
+            update_data = {}
+            
+            # Update text fields if provided
+            for field in ['title', 'subtitle', 'description', 'link', 'position', 'tag', 'cta', 'backgroundColor']:
+                if field in data:
+                    update_data[field] = data[field]
+            
+            # Handle boolean field
+            if 'active' in data:
+                update_data['active'] = data['active'].lower() == 'true'
+            
+            # Upload new image if provided
+            if image_file:
+                image_url = upload_image_to_cloudinary_util(image_file, folder_name="banners")
+                if not image_url:
+                    return JsonResponse({'error': 'Failed to upload image'}, status=500)
+                update_data['image'] = image_url
+        else:
+            # Handle JSON data (for non-file updates)
+            data = json.loads(request.body)
+            update_data = data.copy()
+
+        # Add update timestamp
+        update_data['updated_at'] = datetime.now()
+        
+        # Update banner in Firebase
+        banner_ref.update(update_data)
+        return JsonResponse({'message': 'Banner updated successfully!', 'banner_id': banner_id}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def delete_banner(request, banner_id):
+    """Delete a banner by its ID"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Delete banner from Firebase
+        banner_ref = db.collection('banners').document(banner_id)
+        if banner_ref.get().exists:
+            banner_ref.delete()
+            return JsonResponse({'message': 'Banner deleted successfully!'}, status=200)
+        else:
+            return JsonResponse({'error': 'Banner not found!'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def toggle_banner_active(request, banner_id):
+    """Toggle the 'active' field of a banner by its ID"""
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Get the banner reference from Firebase
+        banner_ref = db.collection('banners').document(banner_id)
+        banner = banner_ref.get()
+
+        if not banner.exists:
+            return JsonResponse({'error': 'Banner not found!'}, status=404)
+
+        # Get the current banner data
+        banner_data = banner.to_dict()
+
+        # Toggle the 'active' field
+        current_active = banner_data.get('active', True)
+        new_active = not current_active
+
+        # Update the banner in Firebase
+        banner_ref.update({
+            'active': new_active,
+            'updated_at': datetime.now()
+        })
+
+        return JsonResponse({'message': 'Banner status updated!', 'active': new_active}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_public_banners(request):
+    """Get all active banners for public display"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    try:
+        # Get only active banners from Firebase
+        banners_ref = db.collection('banners').where('active', '==', True)
+        docs = banners_ref.stream()
+        banners = []
+        for doc in docs:
+            banner_data = doc.to_dict()
+            banner_data['id'] = doc.id
+            banners.append(banner_data)
+        
+        # Sort by position and created_at
+        position_order = {'hero': 0, 'home-middle': 1, 'home-bottom': 2, 'category-top': 3, 'sidebar': 4}
+        banners.sort(key=lambda x: (
+            position_order.get(x.get('position', 'hero'), 999),
+            x.get('created_at', datetime.min)
+        ))
+        
+        return JsonResponse({'banners': banners}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
