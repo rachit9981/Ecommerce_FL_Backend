@@ -27,4 +27,9 @@ urlpatterns = [
     # Public banner endpoint (no auth required)
     path('banners/public/', get_public_banners, name='get_public_banners'),
 
+    # Review management URLs
+    path('reviews/', get_all_product_reviews, name='get_all_product_reviews'),
+    path('reviews/reported/', get_reported_reviews, name='get_reported_reviews'),
+    path('reviews/<str:product_id>/<str:review_id>/delete/', delete_review, name='delete_review'),
+
 ]

@@ -571,13 +571,14 @@ def toggle_banner_active(request, banner_id):
 
 @csrf_exempt
 def get_public_banners(request):
-    """Get all active banners for public display"""
+    """Get all active banners for public display (no authentication required)"""
     if request.method != 'GET':
         return JsonResponse({'error': 'Invalid request method!'}, status=405)
     try:
         # Get only active banners from Firebase
-        banners_ref = db.collection('banners').where('active', '==', True)
+        banners_ref = db.collection('banners').where('is_active', '==', True)
         docs = banners_ref.stream()
+        
         banners = []
         for doc in docs:
             banner_data = doc.to_dict()
@@ -594,3 +595,165 @@ def get_public_banners(request):
         return JsonResponse({'banners': banners}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+## Views for review management
+
+@csrf_exempt
+@admin_required
+def get_all_product_reviews(request):
+    """Get all reviews for products that have at least one review with all review details"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Get all products from Firebase
+        products_ref = db.collection('products').stream()
+        
+        all_reviews = []
+        
+        for product_doc in products_ref:
+            product_data = product_doc.to_dict()
+            product_id = product_doc.id
+            
+            # Get reviews for this product
+            reviews_ref = db.collection('products').document(product_id).collection('reviews').order_by('created_at', direction=firestore.Query.DESCENDING).stream()
+            
+            product_reviews = []
+            for review_doc in reviews_ref:
+                review_data = review_doc.to_dict()
+                review_data['id'] = review_doc.id
+                review_data['product_id'] = product_id
+                review_data['product_name'] = product_data.get('name', 'Unknown Product')
+                
+                # Format the created_at timestamp
+                if 'created_at' in review_data and review_data['created_at']:
+                    review_data['created_at'] = review_data['created_at'].isoformat()
+                
+                product_reviews.append(review_data)
+            
+            # Only include products that have reviews
+            if product_reviews:
+                all_reviews.extend(product_reviews)
+        
+        # Sort all reviews by created_at (most recent first)
+        all_reviews.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        
+        return JsonResponse({
+            'reviews': all_reviews,
+            'total_count': len(all_reviews)
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching reviews: {str(e)}'}, status=500)
+
+@csrf_exempt
+@admin_required
+def get_reported_reviews(request):
+    """Get all reviews that have been reported by users"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Get all products from Firebase
+        products_ref = db.collection('products').stream()
+        
+        reported_reviews = []
+        
+        for product_doc in products_ref:
+            product_data = product_doc.to_dict()
+            product_id = product_doc.id
+            
+            # Get reviews for this product that have been reported
+            reviews_ref = db.collection('products').document(product_id).collection('reviews').where('reported_count', '>', 0).order_by('reported_count', direction=firestore.Query.DESCENDING).stream()
+            
+            for review_doc in reviews_ref:
+                review_data = review_doc.to_dict()
+                review_data['id'] = review_doc.id
+                review_data['product_id'] = product_id
+                review_data['product_name'] = product_data.get('name', 'Unknown Product')
+                
+                # Format the created_at timestamp
+                if 'created_at' in review_data and review_data['created_at']:
+                    review_data['created_at'] = review_data['created_at'].isoformat()
+                
+                # Get report details
+                reports_ref = db.collection('products').document(product_id).collection('reviews').document(review_doc.id).collection('reports').stream()
+                reports = []
+                for report_doc in reports_ref:
+                    report_data = report_doc.to_dict()
+                    report_data['id'] = report_doc.id
+                    if 'created_at' in report_data and report_data['created_at']:
+                        report_data['created_at'] = report_data['created_at'].isoformat()
+                    reports.append(report_data)
+                
+                review_data['reports'] = reports
+                reported_reviews.append(review_data)
+        
+        # Sort by reported_count (highest first) then by created_at
+        reported_reviews.sort(key=lambda x: (x.get('reported_count', 0), x.get('created_at', '')), reverse=True)
+        
+        return JsonResponse({
+            'reported_reviews': reported_reviews,
+            'total_count': len(reported_reviews)
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching reported reviews: {str(e)}'}, status=500)
+
+@csrf_exempt
+@admin_required
+def delete_review(request, product_id, review_id):
+    """Delete a review by its ID for a specific product"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Check if product exists
+        product_doc = db.collection('products').document(product_id).get()
+        if not product_doc.exists:
+            return JsonResponse({'error': 'Product not found'}, status=404)
+        
+        # Check if review exists
+        review_doc_ref = db.collection('products').document(product_id).collection('reviews').document(review_id)
+        review_doc = review_doc_ref.get()
+        
+        if not review_doc.exists:
+            return JsonResponse({'error': 'Review not found'}, status=404)
+        
+        # Delete all reports in the review's reports subcollection
+        reports_ref = review_doc_ref.collection('reports').stream()
+        for report_doc in reports_ref:
+            report_doc.reference.delete()
+        
+        # Delete the review document
+        review_doc_ref.delete()
+        
+        # Recalculate product's average rating and review count after deletion
+        remaining_reviews_ref = db.collection('products').document(product_id).collection('reviews').stream()
+        total_rating = 0
+        review_count = 0
+        
+        for remaining_review_doc in remaining_reviews_ref:
+            remaining_review = remaining_review_doc.to_dict()
+            total_rating += remaining_review.get('rating', 0)
+            review_count += 1
+        
+        # Update product document with new rating and review count
+        if review_count > 0:
+            average_rating = round(total_rating / review_count, 2)
+        else:
+            average_rating = 0
+            
+        db.collection('products').document(product_id).update({
+            'rating': average_rating,
+            'reviews_count': review_count
+        })
+        
+        return JsonResponse({
+            'message': 'Review deleted successfully',
+            'updated_rating': average_rating,
+            'total_reviews': review_count
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error deleting review: {str(e)}'}, status=500)
