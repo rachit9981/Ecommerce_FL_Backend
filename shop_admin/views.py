@@ -8,6 +8,9 @@ from .utils import admin_required, upload_image_to_cloudinary_util
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Get Firebase client
 db = firestore.client()
@@ -757,3 +760,61 @@ def delete_review(request, product_id, review_id):
         
     except Exception as e:
         return JsonResponse({'error': f'Error deleting review: {str(e)}'}, status=500)
+
+
+
+
+@csrf_exempt
+@admin_required
+def upload_product_image(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Check if image file is provided
+        if 'image' not in request.FILES:
+            return JsonResponse({
+                'error': 'No image file provided',
+                'code': 'IMAGE_MISSING'
+            }, status=400)
+        
+        image_file = request.FILES['image']
+        
+        # Validate file type (optional but recommended)
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return JsonResponse({
+                'error': 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.',
+                'code': 'INVALID_FILE_TYPE'
+            }, status=400)
+        # Validate file size (optional - limit to 40MB)
+        max_size = 40 * 1024 * 1024  # 40MB in bytes
+        if image_file.size > max_size:
+            return JsonResponse({
+                'error': 'File size too large. Maximum size is 40MB.',
+                'code': 'FILE_TOO_LARGE'
+            }, status=400)
+        
+        # Upload to Cloudinary using the utility function
+        secure_url = upload_image_to_cloudinary_util(image_file, folder_name="product_images")
+        
+        if secure_url:
+            logger.info(f"Product image uploaded successfully by admin '{request.admin}': {secure_url}")
+            return JsonResponse({
+                'success': True,
+                'image_url': secure_url,
+                'message': 'Image uploaded successfully'
+            }, status=200)
+        else:
+            logger.error(f"Failed to upload product image for admin '{request.admin}'")
+            return JsonResponse({
+                'error': 'Failed to upload image to cloud storage',
+                'code': 'UPLOAD_FAILED'
+            }, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error in upload_product_image for admin '{request.admin}': {str(e)}")
+        return JsonResponse({
+            'error': 'Internal server error during image upload',
+            'code': 'INTERNAL_ERROR'
+        }, status=500)

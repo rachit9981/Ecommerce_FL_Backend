@@ -26,8 +26,6 @@ def admin_required(view_func):
     def wrapper(request, *args, **kwargs):
         # Get the authorization header
         auth_header = request.headers.get('Authorization')
-        print(f"Authorization header: {auth_header}")  # Debugging line
-        
         # Check for missing or malformed authorization header
         if not auth_header:
             logger.warning(f"Admin access attempt without authorization header from {request.META.get('REMOTE_ADDR')}")

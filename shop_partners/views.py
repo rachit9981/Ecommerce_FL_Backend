@@ -231,6 +231,7 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
     if request.method == 'PATCH':
         partner_id = request.partner_id
         try:
+            
             data = json.loads(request.body)
             new_status = data.get('status') 
             notes = data.get('notes', '') # Optional notes from partner

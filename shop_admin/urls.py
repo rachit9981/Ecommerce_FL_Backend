@@ -14,6 +14,7 @@ urlpatterns = [
     path('delete-product/<str:product_id>/', delete_product, name='delete_product'),
     path('products/add/', add_product, name='add_product'),
     path('products/edit/<str:product_id>/', edit_product, name='edit_product'),
+    path('products/upload-image/', upload_product_image, name='upload_product_image'),
     path('users/ban/<str:user_id>/', ban_user, name='ban_user'),path('users/<str:user_id>/', get_user_by_id, name='get_user_by_id'),    path('users/<str:user_id>/orders/<str:order_id>/assign-partner/', assign_order_to_delivery_partner, name='assign_order_to_delivery_partner'),
     path('users/<str:user_id>/orders/<str:order_id>/edit/', edit_order, name='edit_order'),
     
