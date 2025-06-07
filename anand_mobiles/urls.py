@@ -23,11 +23,11 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("users/", include("shop_users.urls")),
-    path("admin/", include("shop_admin.urls")),
-    path("products/", include("products.urls")),
-    path("partners/", include("shop_partners.urls")),
-    path("sell-mobile/", include("sell_mobile.urls")),
+    path("api/users/", include("shop_users.urls")),
+    path("api/admin/", include("shop_admin.urls")),
+    path("api/products/", include("products.urls")),
+    path("api/partners/", include("shop_partners.urls")),
+    path("api/sell-mobile/", include("sell_mobile.urls")),
 ]
 
 if settings.DEBUG:
