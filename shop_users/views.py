@@ -9,6 +9,13 @@ from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore, auth as firebase_auth
 import razorpay
 from django.conf import settings # Import settings
+from shop_admin.utils import (
+    generate_invoice_pdf, 
+    upload_pdf_to_cloudinary_util, 
+    create_invoice_data, 
+    save_invoice_to_firestore
+)
+from datetime import datetime
 
 # Get Firebase client
 db = firestore.client()
@@ -65,7 +72,7 @@ def signup(request):
                         'phone_number': phone_number,
                         'auth_provider': 'firebase',
                         'uid': uid, # Store Firebase UID
-                        'created_at': firestore.SERVER_TIMESTAMP,
+                        'created_at': datetime.now(),
                     }
                     user_doc_ref.set(user_payload)
                     user_id = uid
@@ -113,7 +120,7 @@ def signup(request):
                 'last_name': last_name,
                 'phone_number': phone_number,
                 'auth_provider': 'email',
-                'created_at': firestore.SERVER_TIMESTAMP,
+                'created_at': datetime.now(),
             }
             # Firestore will auto-generate an ID for this document
             update_time, doc_ref = users_ref.add(user_payload)
@@ -195,7 +202,7 @@ def login(request):
                             'phone_number': phone_number,
                             'auth_provider': 'firebase',
                             'uid': uid,
-                            'created_at': firestore.SERVER_TIMESTAMP,
+                            'created_at': datetime.now(),
                         }
                         user_doc_ref.set(user_payload)
                         user_id = uid
@@ -309,7 +316,7 @@ def add_review(request, product_id):
             'email': email,
             'rating': rating,
             'comment': comment,
-            'created_at': firestore.SERVER_TIMESTAMP,
+            'created_at': datetime.now(),
             'is_verified': False,  # Default to false, admin can verify later
             'reported_count': 0,  # Initialize reported count
             'helpful_users': [],  # Initialize helpful users list
@@ -376,7 +383,7 @@ def report_review(request, product_id, review_id):
         # Add report
         report_data = {
             'user_id': user_id,
-            'created_at': firestore.SERVER_TIMESTAMP,
+            'created_at': datetime.now(),
         }
         report_ref = review_doc_ref.collection('reports').add(report_data)
         
@@ -481,15 +488,15 @@ def add_to_cart(request, product_id):
         if cart_item.exists:
             # Update quantity if item already in cart
             new_quantity = cart_item.to_dict().get('quantity', 0) + quantity
-            cart_ref.update({'quantity': new_quantity, 'updated_at': firestore.SERVER_TIMESTAMP})
+            cart_ref.update({'quantity': new_quantity, 'updated_at': datetime.now()})
             message = 'Product quantity updated in cart'
         else:
             # Add new item to cart
             cart_data = {
                 'product_id': product_id,
                 'quantity': quantity,
-                'added_at': firestore.SERVER_TIMESTAMP,
-                'updated_at': firestore.SERVER_TIMESTAMP
+                'added_at': datetime.now(),
+                'updated_at': datetime.now()
             }
             cart_ref.set(cart_data)
             message = 'Product added to cart'
@@ -585,7 +592,7 @@ def add_to_wishlist(request, product_id):
         else:
             wishlist_data = {
                 'product_id': product_id,
-                'added_at': firestore.SERVER_TIMESTAMP
+                'added_at': datetime.now()
             }
             wishlist_ref.set(wishlist_data)
             return JsonResponse({'message': 'Product added to wishlist', 'product_id': product_id}, status=201)
@@ -745,7 +752,7 @@ def create_razorpay_order(request):
             'total_amount': amount_in_paise / 100, # Store amount in rupees
             'currency': currency,
             'status': 'pending_payment',
-            'created_at': firestore.SERVER_TIMESTAMP,
+            'created_at': datetime.now(),
             'estimated_delivery': est_delivery_date,
             'tracking_info': {
                 'carrier': None,
@@ -914,19 +921,60 @@ def verify_razorpay_payment(request):
                     'razorpay_signature': razorpay_signature,
                     'method': payment_details.get('method'),
                     'status': payment_details.get('status'), # Should be 'captured'
-                    'captured_at': firestore.SERVER_TIMESTAMP, # Or use payment_details.get('created_at')
+                    'captured_at': datetime.now(), # Or use payment_details.get('created_at')
                     'card_network': payment_details.get('card', {}).get('network'),  # Add card details if available
                     'card_last4': payment_details.get('card', {}).get('last4')
-                },
-                'order_items': order_items,
+                },                'order_items': order_items,
                 'total_amount_calculated': total_calculated_amount, # Store the server-calculated total
                 'tracking_info': tracking_info,
-                'updated_at': firestore.SERVER_TIMESTAMP
+                'updated_at': datetime.now()
             }
             batch.update(order_doc_ref, final_order_update)
             
             # Commit the batch
             batch.commit()
+
+            # Generate invoice after successful payment and order update
+            try:
+                # Get user data for invoice
+                user_doc = db.collection('users').document(user_id).get()
+                user_data = user_doc.to_dict() if user_doc.exists else {}
+                
+                # Create invoice data
+                invoice_data = create_invoice_data(order_data, user_data, order_items)
+                
+                if invoice_data:
+                    # Generate PDF
+                    pdf_buffer = generate_invoice_pdf(invoice_data)
+                    
+                    if pdf_buffer:
+                        # Upload PDF to Cloudinary
+                        pdf_filename = f"invoice_{invoice_data['invoice_id']}"
+                        pdf_url = upload_pdf_to_cloudinary_util(pdf_buffer, pdf_filename)
+                        
+                        if pdf_url:
+                            # Save invoice to Firestore
+                            invoice_doc_id = save_invoice_to_firestore(db, user_id, invoice_data, pdf_url)
+                            
+                            if invoice_doc_id:
+                                # Update order with invoice reference
+                                order_doc_ref.update({
+                                    'invoice_id': invoice_data['invoice_id'],
+                                    'invoice_pdf_url': pdf_url
+                                })
+                                print(f"Invoice generated successfully: {invoice_data['invoice_id']}")
+                            else:
+                                print("Failed to save invoice to Firestore")
+                        else:
+                            print("Failed to upload invoice PDF to Cloudinary")
+                    else:
+                        print("Failed to generate invoice PDF")
+                else:
+                    print("Failed to create invoice data")
+                    
+            except Exception as invoice_error:
+                # Log error but don't fail the payment verification
+                print(f"Error generating invoice: {str(invoice_error)}")
 
             return JsonResponse({
                 'message': 'Payment verified successfully and order placed.',
@@ -961,7 +1009,7 @@ def verify_razorpay_payment(request):
                     'error_message': 'Signature verification failed'
                 },
                 'tracking_info': tracking_info,
-                'updated_at': firestore.SERVER_TIMESTAMP
+                'updated_at': datetime.now()
             })
             return JsonResponse({'error': 'Payment verification failed. Signature mismatch.'}, status=400)
 
@@ -1001,7 +1049,7 @@ def verify_razorpay_payment(request):
                             'error_message': 'Signature verification failed (Razorpay lib error)'
                         },
                         'tracking_info': tracking_info,
-                        'updated_at': firestore.SERVER_TIMESTAMP
+                        'updated_at': datetime.now()
                     })
         except Exception as e_inner:
             print(f"Error updating order status after SignatureVerificationError: {e_inner}")
@@ -1099,13 +1147,22 @@ def get_order_details(request, order_id):
             timestamp = status.get('timestamp')
             if timestamp and hasattr(timestamp, 'strftime'):
                 status['timestamp_formatted'] = timestamp.strftime('%m/%d/%Y at %H:%M %p')
-        
-        # Get shipping address if not already included
+          # Get shipping address if not already included
         if 'address' not in order_data and 'address_id' in order_data:
             address_id = order_data.get('address_id')
             address_doc = db.collection('users').document(user_id).collection('addresses').document(address_id).get()
             if address_doc.exists:
                 order_data['address'] = address_doc.to_dict()
+
+        # Include invoice information if available
+        invoice_info = {}
+        if 'invoice_id' in order_data:
+            invoice_info['invoice_id'] = order_data['invoice_id']
+        if 'invoice_pdf_url' in order_data:
+            invoice_info['invoice_pdf_url'] = order_data['invoice_pdf_url']
+        
+        if invoice_info:
+            order_data['invoice'] = invoice_info
 
         return JsonResponse({'order_details': order_data}, status=200)
 
@@ -1198,8 +1255,8 @@ def add_address(request):
             'postal_code': data['postal_code'],
             'phone_number': data['phone_number'],
             'is_default': is_default,
-            'created_at': firestore.SERVER_TIMESTAMP,
-            'updated_at': firestore.SERVER_TIMESTAMP,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
         }
         _, new_address_ref = addresses_ref.add(address_payload) # Use _ for unused update_time
         
@@ -1268,7 +1325,7 @@ def update_address(request, address_id):
         if not update_payload:
             return JsonResponse({'error': 'No update data provided'}, status=400)
 
-        update_payload['updated_at'] = firestore.SERVER_TIMESTAMP
+        update_payload['updated_at'] = datetime.now()
         address_ref.update(update_payload)
         updated_address = address_ref.get().to_dict()
         updated_address['id'] = address_id
@@ -1324,7 +1381,7 @@ def set_default_address(request, address_id):
                 batch.update(addr_doc.reference, {'is_default': False})
         
         # Set the new default
-        batch.update(target_address_ref, {'is_default': True, 'updated_at': firestore.SERVER_TIMESTAMP})
+        batch.update(target_address_ref, {'is_default': True, 'updated_at': datetime.now()})
         batch.commit()
 
         return JsonResponse({'message': f'Address {address_id} set as default successfully'}, status=200)
@@ -1414,7 +1471,7 @@ def update_profile(request):
             return JsonResponse({'error': 'All password fields (current, new, confirm) are required to change password'}, status=400)
 
         if update_payload:
-            update_payload['updated_at'] = firestore.SERVER_TIMESTAMP
+            update_payload['updated_at'] = datetime.now()
             user_doc_ref.update(update_payload)
             
             # Fetch updated data to return (optional, but good for confirmation)

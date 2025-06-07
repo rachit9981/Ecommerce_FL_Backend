@@ -7,6 +7,7 @@ from firebase_admin import firestore
 from anand_mobiles.settings import SECRET_KEY # Assuming SECRET_KEY is in your project settings
 from .utils import partner_required # Import the new decorator
 from shop_admin.utils import admin_required # For admin verification
+from datetime import datetime
 
 # Get Firebase client
 db = firestore.client()
@@ -38,7 +39,7 @@ def partner_register(request):
                 'name': name,
                 'phone': phone,
                 'is_verified': False, # Admin needs to verify
-                'created_at': firestore.SERVER_TIMESTAMP
+                'created_at': datetime.now()
             }
             doc_ref = db.collection(PARTNERS_COLLECTION).add(new_partner_data)
             return JsonResponse({'message': 'Partner registration successful. Awaiting admin verification.', 'partner_id': doc_ref[1].id}, status=201)
@@ -276,7 +277,7 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
             
             # Add new status entry to tracking_info.status_history
             history_entry = {
-                'timestamp': firestore.SERVER_TIMESTAMP,
+                'timestamp': datetime.now(),
                 'updated_by': 'partner',
                 'partner_id': partner_id,
                 'status': new_status,
@@ -294,7 +295,7 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
                 'tracking_info': {
                     'status_history': status_history
                 },
-                'last_updated_by_partner_at': firestore.SERVER_TIMESTAMP # Specific timestamp for partner update
+                'last_updated_by_partner_at': datetime.now() # Specific timestamp for partner update
             }
             
             # If estimated delivery date is provided, add it to the update payload
@@ -303,7 +304,7 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
             
             # If status is 'delivered', add delivered_at timestamp
             if new_status == 'delivered':
-                update_payload['delivered_at'] = firestore.SERVER_TIMESTAMP
+                update_payload['delivered_at'] = datetime.now()
             
             order_ref.update(update_payload)
             return JsonResponse({'message': f'Delivery status for order {order_id} updated to {new_status}.'})

@@ -52,3 +52,6 @@ tzdata==2025.2
 uritemplate==4.1.1
 urllib3==2.4.0
 whitenoise==6.9.0
+xhtml2pdf==0.2.11
+cloudinary==1.41.0
+pdfkit==1.0.0
