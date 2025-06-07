@@ -235,6 +235,7 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
             data = json.loads(request.body)
             new_status = data.get('status') 
             notes = data.get('notes', '') # Optional notes from partner
+            estimated_delivery = data.get('estimated_delivery') # Get estimated delivery date if provided
 
             if not new_status:
                 return JsonResponse({'error': 'New status is required'}, status=400)
@@ -283,6 +284,8 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
             }
             if notes:
                 history_entry['notes'] = notes
+            if estimated_delivery:
+                history_entry['estimated_delivery'] = estimated_delivery
             status_history.append(history_entry)
 
             # Prepare the update payload
@@ -293,6 +296,10 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
                 },
                 'last_updated_by_partner_at': firestore.SERVER_TIMESTAMP # Specific timestamp for partner update
             }
+            
+            # If estimated delivery date is provided, add it to the update payload
+            if estimated_delivery:
+                update_payload['estimated_delivery'] = estimated_delivery
             
             # If status is 'delivered', add delivered_at timestamp
             if new_status == 'delivered':
