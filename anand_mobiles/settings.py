@@ -36,7 +36,7 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 
-ALLOWED_HOSTS = ['10.0.2.2','127.0.0.1','69.62.72.199']
+ALLOWED_HOSTS = ['10.0.2.2','127.0.0.1']
 
 # Initialize Firebase
 FIREBASE_CONFIG_PATH = BASE_DIR / os.getenv('FIREBASE_CONFIG_PATH', 'config_anand.json')
