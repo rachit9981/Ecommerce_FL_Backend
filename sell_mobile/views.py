@@ -5,6 +5,7 @@ from google.cloud import firestore  # Import firestore for Query constants
 import json
 from datetime import datetime
 import os
+from shop_users.utils import user_required
 from pathlib import Path
 
 # Create your views here.
@@ -194,6 +195,7 @@ def fetch_sell_mobile_details(request, mobile_id):
             'message': f'An error occurred: {str(e)}'
         }, status=500)
 
+@user_required
 @csrf_exempt
 def submit_inquiry(request):
     """
@@ -203,7 +205,8 @@ def submit_inquiry(request):
         try:
             data = json.loads(request.body)
             
-            required_fields = ['sell_mobile_id', 'buyer_name', 'buyer_phone']
+            required_fields = ['sell_mobile_id', 'user_id', 'buyer_phone', 'selected_variant', 
+                              'selected_condition', 'address']
             
             for field in required_fields:
                 if field not in data:
@@ -212,15 +215,53 @@ def submit_inquiry(request):
                         'message': f'Missing required field: {field}'
                     }, status=400)
             
-            sell_mobile_ref = db.collection('sell_mobiles').document(data['sell_mobile_id'])
-            if not sell_mobile_ref.get().exists:
+            # Validate address structure
+            address = data.get('address')
+            if not isinstance(address, dict):
                 return JsonResponse({
                     'status': 'error',
-                    'message': 'Mobile listing not found'
+                    'message': 'Address must be a properly structured object'
+                }, status=400)
+                
+            # Check required address fields
+            required_address_fields = ['street_address', 'city', 'state', 'postal_code']
+            for field in required_address_fields:
+                if field not in address:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Missing required address field: {field}'
+                    }, status=400)
+            
+            # First check if the mobile exists in the sell_mobiles collection
+            sell_mobile_id = data['sell_mobile_id']
+            sell_mobile_ref = db.collection('sell_mobiles').document(sell_mobile_id)
+            mobile_found = sell_mobile_ref.get().exists
+            
+            # If not found in sell_mobiles, check the mobile_catalog collection
+            if not mobile_found:
+                catalog_ref = db.collection('mobile_catalog').document(sell_mobile_id)
+                mobile_found = catalog_ref.get().exists
+            
+            if not mobile_found:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Mobile listing not found with ID: {sell_mobile_id}. Please check if you are using the correct ID.'
                 }, status=404)
             
-            data['status'] = 'pending'
+            # Set default status as 'pending' if not provided
+            if 'status' not in data:
+                data['status'] = 'pending'
+            else:
+                # Validate status if provided
+                valid_statuses = ['pending', 'accepted', 'completed', 'rejected']
+                if data['status'] not in valid_statuses:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Invalid status. Valid options: {valid_statuses}'
+                    }, status=400)
+            
             data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
             
             doc_ref = db.collection('sell_mobile_inquiries').document()
             doc_ref.set(data)
@@ -246,6 +287,60 @@ def submit_inquiry(request):
         'status': 'error',
         'message': 'Only POST method allowed'
     }, status=405)
+
+@user_required
+@csrf_exempt
+def fetch_user_inquiries(request):
+    """
+    Fetch all inquiries made by the logged-in user
+    """
+    try:
+        user_id = request.user.id  # Assuming user ID is stored in request.user.id
+        
+        # Fetch inquiries made by the user
+        inquiries_ref = db.collection('sell_mobile_inquiries').where('user_id', '==', user_id)
+        inquiries = []
+        
+        for inquiry_doc in inquiries_ref.stream():
+            inquiry_data = inquiry_doc.to_dict()
+            inquiry_data['id'] = inquiry_doc.id
+            inquiries.append(inquiry_data)
+        
+        return JsonResponse({
+            'status': 'success',
+            'data': inquiries
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)
+
+@csrf_exempt
+def fetch_inquiries_for_mobile(request, mobile_id):
+    """
+    Fetch all inquiries for a specific sell mobile listing
+    """
+    try:
+        inquiries_ref = db.collection('sell_mobile_inquiries').where('sell_mobile_id', '==', mobile_id)
+        inquiries = []
+        
+        for inquiry_doc in inquiries_ref.stream():
+            inquiry_data = inquiry_doc.to_dict()
+            inquiry_data['id'] = inquiry_doc.id
+            inquiries.append(inquiry_data)
+        
+        return JsonResponse({
+            'status': 'success',
+            'data': inquiries
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)  
 
 @csrf_exempt
 def update_sell_mobile_status(request, mobile_id):
@@ -307,31 +402,6 @@ def update_sell_mobile_status(request, mobile_id):
         'status': 'error',
         'message': 'Only PUT method allowed'
     }, status=405)
-
-@csrf_exempt
-def fetch_brands(request):
-    """
-    Fetch unique brands from sell mobile listings
-    """
-    try:
-        docs = db.collection('sell_mobiles').stream()
-        brands = set()
-        
-        for doc in docs:
-            mobile_data = doc.to_dict()
-            if 'mobile_brand' in mobile_data:
-                brands.add(mobile_data['mobile_brand'])
-        
-        return JsonResponse({
-            'status': 'success',
-            'data': sorted(list(brands))
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': f'An error occurred: {str(e)}'
-        }, status=500)
 
 @csrf_exempt
 def upload_phone_data(request):
