@@ -288,6 +288,60 @@ def submit_inquiry(request):
         'message': 'Only POST method allowed'
     }, status=405)
 
+@user_required
+@csrf_exempt
+def fetch_user_inquiries(request):
+    """
+    Fetch all inquiries made by the logged-in user
+    """
+    try:
+        user_id = request.user.id  # Assuming user ID is stored in request.user.id
+        
+        # Fetch inquiries made by the user
+        inquiries_ref = db.collection('sell_mobile_inquiries').where('user_id', '==', user_id)
+        inquiries = []
+        
+        for inquiry_doc in inquiries_ref.stream():
+            inquiry_data = inquiry_doc.to_dict()
+            inquiry_data['id'] = inquiry_doc.id
+            inquiries.append(inquiry_data)
+        
+        return JsonResponse({
+            'status': 'success',
+            'data': inquiries
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)
+
+@csrf_exempt
+def fetch_inquiries_for_mobile(request, mobile_id):
+    """
+    Fetch all inquiries for a specific sell mobile listing
+    """
+    try:
+        inquiries_ref = db.collection('sell_mobile_inquiries').where('sell_mobile_id', '==', mobile_id)
+        inquiries = []
+        
+        for inquiry_doc in inquiries_ref.stream():
+            inquiry_data = inquiry_doc.to_dict()
+            inquiry_data['id'] = inquiry_doc.id
+            inquiries.append(inquiry_data)
+        
+        return JsonResponse({
+            'status': 'success',
+            'data': inquiries
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)  
+
 @csrf_exempt
 def update_sell_mobile_status(request, mobile_id):
     """
