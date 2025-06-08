@@ -2,12 +2,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 import jwt
-import datetime
+from datetime import datetime, timedelta
 from firebase_admin import firestore
 from anand_mobiles.settings import SECRET_KEY # Assuming SECRET_KEY is in your project settings
 from .utils import partner_required # Import the new decorator
 from shop_admin.utils import admin_required # For admin verification
-from datetime import datetime
 
 # Get Firebase client
 db = firestore.client()
@@ -50,6 +49,7 @@ def partner_register(request):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 @csrf_exempt
+@csrf_exempt
 def partner_login(request):
     if request.method == 'POST':
         try:
@@ -67,25 +67,33 @@ def partner_login(request):
                 return JsonResponse({'error': 'Invalid credentials'}, status=401)
 
             partner_data = partner_doc.to_dict()
+            if not partner_data:
+                return JsonResponse({'error': 'Invalid partner data'}, status=500)
+                
             # In a real app, use check_password(password, partner_data.get('password'))
-            if partner_data.get('password') != password: 
+            stored_password = partner_data.get('password')
+            if stored_password != password: 
                 return JsonResponse({'error': 'Invalid credentials'}, status=401)
 
-            if not partner_data.get('is_verified'):
+            if not partner_data.get('is_verified', False):
                 return JsonResponse({'error': 'Partner account not verified by admin'}, status=403)
 
             # Generate JWT token
             payload = {
                 'partner_id': partner_doc.id,
-                'email': partner_data.get('email'),
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24) # Token expires in 24 hours
+                'email': partner_data.get('email', ''),
+                'exp': datetime.now() + timedelta(hours=24) # Token expires in 24 hours
             }
+            # Ensure SECRET_KEY is not None
+            if not SECRET_KEY:
+                return JsonResponse({'error': 'Server configuration error'}, status=500)
+                
             token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
 
             return JsonResponse({'message': 'Login successful', 'token': token, 'partner_id': partner_doc.id})
-        except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
+            print(f"Error during partner login: {str(e)}")  # Log the error for debugging
             return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
@@ -232,39 +240,36 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
     if request.method == 'PATCH':
         partner_id = request.partner_id
         try:
-            
             data = json.loads(request.body)
             new_status = data.get('status') 
             notes = data.get('notes', '') # Optional notes from partner
             estimated_delivery = data.get('estimated_delivery') # Get estimated delivery date if provided
+            carrier = data.get('carrier', '') # Get carrier name if provided
+            tracking_number = data.get('tracking_number', '') # Get tracking number if provided
 
             if not new_status:
-                return JsonResponse({'error': 'New status is required'}, status=400)
-            
-            # Define valid statuses a partner can set. Admin might have more control.
-            valid_partner_statuses = ['out_for_delivery', 'delivered', 'failed_attempt', 'returning_to_warehouse'] 
+                return JsonResponse({'error': 'New status is required'}, status=400)              # Define valid statuses a partner can set. Admin might have more control.
+            valid_partner_statuses = ['out_for_delivery', 'delivered', 'failed_attempt', 'returning_to_warehouse', 'shipped', 'processing', 'packed', 'other'] 
             if new_status not in valid_partner_statuses:
-                return JsonResponse({'error': f'Invalid status. Must be one of {valid_partner_statuses}'}, status=400)
-
-            # Search for the order across all users since orders are stored as subcollections
+                return JsonResponse({'error': f'Invalid status. Must be one of {valid_partner_statuses}'}, status=400)            # Search for the order across all users since orders are stored as subcollections
             order_found = False
             order_ref = None
             user_id = None
+            order_doc = None
             
             users_ref = db.collection('users').stream()
             for user_doc in users_ref:
                 user_id = user_doc.id
                 order_ref = db.collection('users').document(user_id).collection('orders').document(order_id)
                 order_doc = order_ref.get()
-                
                 if order_doc.exists:
                     order_found = True
                     break
-
-            if not order_found:
+                    
+            if not order_found or not order_ref or not order_doc:
                 return JsonResponse({'error': 'Order not found'}, status=404)
             
-            order_data = order_doc.to_dict()
+            order_data = order_doc.to_dict() if order_doc else {}
             if order_data.get('assigned_partner_id') != partner_id:
                 return JsonResponse({'error': 'Order not assigned to this partner or access denied'}, status=403)            # Prevent updating status of already delivered or cancelled orders by partner
             if order_data.get('delivery_status') in ['delivered', 'cancelled_by_admin', 'cancelled_by_user']:
@@ -273,30 +278,63 @@ def update_order_status_by_partner(request, order_id): # Renamed from update_del
             # Update the delivery status and add a timestamped history entry
             # Use tracking_info.status_history to align with admin logic
             tracking_info = order_data.get('tracking_info', {})
-            status_history = tracking_info.get('status_history', [])
+            status_history = tracking_info.get('status_history', [])            # Add new status entry to tracking_info.status_history
+            status_description = f'Order status updated to {new_status} by delivery partner.'
             
-            # Add new status entry to tracking_info.status_history
+            # Handle 'other' status and extract the custom status text
+            if new_status == 'other' and notes and notes.startswith('Custom status:'):
+                custom_status = notes.split('Custom status:')[1].split('-')[0].strip()
+                status_description = f'Order status updated to {custom_status} by delivery partner.'
+                # For display purposes in OrderTrackingDetail, keep the custom text
+                history_entry_status = custom_status
+            else:
+                history_entry_status = new_status
+            
             history_entry = {
                 'timestamp': datetime.now(),
                 'updated_by': 'partner',
                 'partner_id': partner_id,
-                'status': new_status,
-                'description': f'Order status updated to {new_status} by delivery partner.'
+                'status': history_entry_status,
+                'description': status_description
             }
+            
             if notes:
                 history_entry['notes'] = notes
             if estimated_delivery:
                 history_entry['estimated_delivery'] = estimated_delivery
-            status_history.append(history_entry)
-
+            status_history.append(history_entry)            # Get the existing tracking info or create a new one
+            tracking_info = order_data.get('tracking_info', {})
+            
+            # Set the status history
+            tracking_info['status_history'] = status_history
+            
             # Prepare the update payload
             update_payload = {
                 'delivery_status': new_status,
-                'tracking_info': {
-                    'status_history': status_history
-                },
+                'tracking_info': tracking_info,
                 'last_updated_by_partner_at': datetime.now() # Specific timestamp for partner update
             }
+            
+            # If carrier and tracking number are provided, add them to tracking_info
+            if carrier:
+                update_payload['tracking_info']['carrier'] = carrier
+            
+            if tracking_number:
+                update_payload['tracking_info']['tracking_number'] = tracking_number
+                # Create a tracking URL if carrier is recognized
+                if carrier and carrier.lower() in ['fedex', 'ups', 'usps', 'dhl']:
+                    tracking_url = ""
+                    if carrier.lower() == 'fedex':
+                        tracking_url = f"https://www.fedex.com/apps/fedextrack/?tracknumbers={tracking_number}"
+                    elif carrier.lower() == 'ups':
+                        tracking_url = f"https://www.ups.com/track?tracknum={tracking_number}"
+                    elif carrier.lower() == 'usps':
+                        tracking_url = f"https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking_number}"
+                    elif carrier.lower() == 'dhl':
+                        tracking_url = f"https://www.dhl.com/en/express/tracking.html?AWB={tracking_number}"
+                    
+                    if tracking_url:
+                        update_payload['tracking_info']['tracking_url'] = tracking_url
             
             # If estimated delivery date is provided, add it to the update payload
             if estimated_delivery:
