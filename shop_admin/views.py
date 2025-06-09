@@ -203,7 +203,7 @@ def assign_order_to_delivery_partner(request, user_id, order_id):
             'assigned_partner_id': partner_id,
             'assigned_partner_name': partner_name, # Add partner name to the order
             'assigned_at': datetime.now(),  # Uses client-side timestamp
-            'last_updated_by_admin_at': firestore.SERVER_TIMESTAMP # Uses server-side timestamp
+            'last_updated_by_admin_at': datetime.now() # Uses server-side timestamp
         }
         
         order_data = order_doc.to_dict()
