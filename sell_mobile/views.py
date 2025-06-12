@@ -289,21 +289,101 @@ def submit_inquiry(request):
     }, status=405)
 
 @user_required
-@csrf_exempt
+@csrf_exempt # GET requests are generally not CSRF vulnerable, but good practice if any state changes
 def fetch_user_inquiries(request):
     """
     Fetch all inquiries made by the logged-in user
     """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
     try:
-        user_id = request.user.id  # Assuming user ID is stored in request.user.id
-        
-        # Fetch inquiries made by the user
-        inquiries_ref = db.collection('sell_mobile_inquiries').where('user_id', '==', user_id)
+        user_id = request.user_id
+        inquiries_ref = db.collection('sell_mobile_inquiries').where('user_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING)
+        inquiries_list = []
+        for inquiry_doc in inquiries_ref.stream():
+            inquiry_data = inquiry_doc.to_dict()
+            
+            # Format timestamps for consistent display
+            created_at = inquiry_data.get('created_at')
+            created_at_formatted = None
+            if created_at:
+                created_at_formatted = created_at.strftime('%m/%d/%Y at %H:%M %p') if hasattr(created_at, 'strftime') else None
+            
+            # Fetch pricing information from the mobile catalog or sell_mobiles collection
+            sell_mobile_id = inquiry_data.get('sell_mobile_id')
+            selected_variant = inquiry_data.get('selected_variant')
+            selected_condition = inquiry_data.get('selected_condition')
+            price = None
+            
+            if sell_mobile_id and selected_variant and selected_condition:
+                try:
+                    # First try to get price from mobile_catalog
+                    catalog_doc = db.collection('mobile_catalog').document(sell_mobile_id).get()
+                    if catalog_doc.exists:
+                        catalog_data = catalog_doc.to_dict()
+                        variant_prices = catalog_data.get('variant_prices', {})
+                        if selected_variant in variant_prices and selected_condition in variant_prices[selected_variant]:
+                            price_value = variant_prices[selected_variant][selected_condition]
+                            price = f"₹{price_value}" if isinstance(price_value, int) else price_value
+                    
+                    # If not found in catalog, try sell_mobiles collection
+                    if not price:
+                        sell_mobile_doc = db.collection('sell_mobiles').document(sell_mobile_id).get()
+                        if sell_mobile_doc.exists:
+                            sell_mobile_data = sell_mobile_doc.to_dict()
+                            expected_price = sell_mobile_data.get('expected_price')
+                            if expected_price:
+                                price = f"₹{int(expected_price)}"
+                except Exception as e:
+                    print(f"Error fetching price for inquiry {inquiry_doc.id}: {str(e)}")
+            
+            inquiries_list.append({
+                'inquiry_id': inquiry_doc.id,
+                'sell_mobile_id': inquiry_data.get('sell_mobile_id'),
+                'status': inquiry_data.get('status'),
+                'selected_variant': selected_variant,
+                'selected_condition': selected_condition,
+                'price': price,
+                'buyer_phone': inquiry_data.get('buyer_phone'),
+                'address': inquiry_data.get('address'),
+                'created_at': created_at_formatted or inquiry_data.get('created_at'),
+                'updated_at': inquiry_data.get('updated_at')
+            })
+
+        return JsonResponse({'inquiries': inquiries_list}, status=200)
+
+    except Exception as e:
+        print(f"Error fetching inquiries for user {user_id}: {str(e)}")
+        return JsonResponse({'error': f'Error fetching inquiries: {str(e)}'}, status=500)
+
+@csrf_exempt
+def fetch_inquiries_for_mobile(request):
+    """
+    Fetch all inquiries for a specific sell mobile listing
+    """
+    try:
+        inquiries_ref = db.collection('sell_mobile_inquiries')
         inquiries = []
         
         for inquiry_doc in inquiries_ref.stream():
             inquiry_data = inquiry_doc.to_dict()
             inquiry_data['id'] = inquiry_doc.id
+            
+            # Fetch user details from users collection
+            user_id = inquiry_data.get('user_id')
+            if user_id:
+                try:
+                    user_doc = db.collection('users').document(user_id).get()
+                    if user_doc.exists:
+                        user_data = user_doc.to_dict()
+                        inquiry_data['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                        inquiry_data['user_email'] = user_data.get('email', '')
+                except Exception as e:
+                    print(f"Error fetching user data for user_id {user_id}: {str(e)}")
+                    inquiry_data['user_name'] = 'Unknown User'
+                    inquiry_data['user_email'] = ''
+            
             inquiries.append(inquiry_data)
         
         return JsonResponse({
@@ -316,31 +396,6 @@ def fetch_user_inquiries(request):
             'status': 'error',
             'message': f'An error occurred: {str(e)}'
         }, status=500)
-
-@csrf_exempt
-def fetch_inquiries_for_mobile(request, mobile_id):
-    """
-    Fetch all inquiries for a specific sell mobile listing
-    """
-    try:
-        inquiries_ref = db.collection('sell_mobile_inquiries').where('sell_mobile_id', '==', mobile_id)
-        inquiries = []
-        
-        for inquiry_doc in inquiries_ref.stream():
-            inquiry_data = inquiry_doc.to_dict()
-            inquiry_data['id'] = inquiry_doc.id
-            inquiries.append(inquiry_data)
-        
-        return JsonResponse({
-            'status': 'success',
-            'data': inquiries
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': f'An error occurred: {str(e)}'
-        }, status=500)  
 
 @csrf_exempt
 def update_sell_mobile_status(request, mobile_id):
