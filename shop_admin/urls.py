@@ -26,11 +26,21 @@ urlpatterns = [
     path('banners/toggle/<str:banner_id>/', toggle_banner_active, name='toggle_banner_active'),
     
     # Public banner endpoint (no auth required)
-    path('banners/public/', get_public_banners, name='get_public_banners'),
+    path('banners/public/', get_all_banners, name='get_public_banners'),
 
     # Review management URLs
     path('reviews/', get_all_product_reviews, name='get_all_product_reviews'),
     path('reviews/reported/', get_reported_reviews, name='get_reported_reviews'),
     path('reviews/<str:product_id>/<str:review_id>/delete/', delete_review, name='delete_review'),
 
+    # Logo management URLs
+    path('content/logo', get_logo, name='get_logo'),  # Public endpoint
+    path('content/logo/upload', upload_logo, name='upload_logo'),  # Admin only endpoint
+    path('content/logo/delete', delete_logo, name='delete_logo'),  # Admin only endpoint
+
+    # Category management URLs
+    path('categories/', get_all_categories, name='get_all_categories'),
+    path('categories/add/', add_category, name='add_category'),
+    path('categories/edit/<str:category_id>/', edit_category, name='edit_category'),
+    path('categories/upload-image/', upload_category_image, name='upload_category_image'),
 ]

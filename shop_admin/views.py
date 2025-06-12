@@ -453,7 +453,6 @@ def get_user_by_id(request, user_id):
 ## Views for banner management
 
 @csrf_exempt
-@admin_required
 def get_all_banners(request):
     """Get all banners"""
     if request.method != 'GET':
@@ -855,6 +854,260 @@ def upload_product_image(request):
     except Exception as e:
         logger.error(f"Error in upload_product_image for admin '{request.admin}': {str(e)}")
         return JsonResponse({
+            'error': 'Internal server error during image upload',
+            'code': 'INTERNAL_ERROR'
+        }, status=500)
+
+@csrf_exempt
+@admin_required
+def upload_logo(request):
+    """Upload/update shop logo"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        if 'logo' not in request.FILES:
+            return JsonResponse({'error': 'No logo file provided'}, status=400)
+        
+        # Upload logo to Cloudinary
+        logo_file = request.FILES['logo']
+        print('logo_file:', logo_file)  # Debugging line to check incoming file
+        logo_url = upload_image_to_cloudinary_util(logo_file, folder_name="shop_logo")
+        
+        if not logo_url:
+            return JsonResponse({'error': 'Failed to upload logo to Cloudinary'}, status=500)
+        
+        # Save logo URL in Firebase settings
+        settings_ref = db.collection('settings').document('general')
+        settings_ref.set({
+            'logo_url': logo_url,
+            'updated_at': datetime.now(),
+            'updated_by': request.admin
+        }, merge=True)
+        
+        return JsonResponse({
+            'message': 'Logo uploaded successfully',
+            'logo_url': logo_url
+        }, status=200)
+            
+    except Exception as e:
+        logger.error(f"Error uploading logo: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_logo(request):
+    """Get the shop logo URL from settings"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Get logo URL from settings in Firebase
+        settings_ref = db.collection('settings').document('general')
+        settings_doc = settings_ref.get()
+        
+        if not settings_doc.exists:
+            return JsonResponse({'error': 'Settings not found'}, status=404)
+            
+        settings_data = settings_doc.to_dict()
+        logo_url = settings_data.get('logo_url', '')
+        
+        return JsonResponse({'logo_url': logo_url}, status=200)
+        
+    except Exception as e:
+        logger.error(f"Error fetching logo: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def delete_logo(request):
+    """Delete the shop logo"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Get the current logo URL from settings
+        settings_ref = db.collection('settings').document('general')
+        settings_doc = settings_ref.get()
+        
+        if not settings_doc.exists:
+            return JsonResponse({'error': 'Settings not found'}, status=404)
+            
+        settings_data = settings_doc.to_dict()
+        current_logo_url = settings_data.get('logo_url')
+        
+        # Reset the logo URL in Firebase
+        settings_ref.update({
+            'logo_url': None,
+            'updated_at': datetime.now(),
+            'updated_by': request.admin
+        })
+        
+        # Here you could also delete the image from Cloudinary if needed
+        # For now, we'll just remove the reference
+        
+        return JsonResponse({
+            'message': 'Logo deleted successfully',
+            'previous_url': current_logo_url
+        }, status=200)
+        
+    except Exception as e:
+        logger.error(f"Error deleting logo: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+## Views for category management
+
+@csrf_exempt
+def get_all_categories(request):
+    """Get all product categories"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        categories_ref = db.collection('categories').order_by('name').stream()
+        categories = []
+        for doc in categories_ref:
+            category_data = doc.to_dict()
+            category_data['id'] = doc.id
+            categories.append(category_data)
+        return JsonResponse({'categories': categories}, status=200)
+    except Exception as e:
+        logger.error(f"Error fetching categories: {str(e)}")
+        return JsonResponse({'error': f'Error fetching categories: {str(e)}'}, status=500)
+
+@csrf_exempt
+@admin_required
+def add_category(request):
+    """Add a new product category"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        image_url = data.get('image_url')
+        redirect_url = data.get('redirect_url')
+
+        if not name:
+            return JsonResponse({'error': 'Category name is required'}, status=400)
+
+        # Add category to Firebase
+        category_ref = db.collection('categories').document()
+        category_data = {
+            'name': name,
+            'image_url': image_url,
+            'redirect_url': redirect_url,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'order': data.get('order', 0),  # Default order to 0 if not provided
+        }
+        category_ref.set(category_data)
+        category_data['id'] = category_ref.id
+        return JsonResponse({'message': 'Category added successfully!', 'category': category_data}, status=201)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Error adding category: {str(e)}")
+        return JsonResponse({'error': f'Error adding category: {str(e)}'}, status=500)
+
+@csrf_exempt
+@admin_required
+def edit_category(request, category_id):
+    """Edit an existing product category by its ID"""
+    if request.method not in ['PUT', 'PATCH']:
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        category_ref = db.collection('categories').document(category_id)
+
+        if not category_ref.get().exists:
+            return JsonResponse({'error': 'Category not found'}, status=404)
+
+        update_data = {}
+        if 'name' in data:
+            update_data['name'] = data['name']
+        if 'image_url' in data:
+            update_data['image_url'] = data['image_url']
+        if 'redirect_url' in data:
+            update_data['redirect_url'] = data['redirect_url']
+        if 'order' in data:
+            update_data['order'] = data['order']
+        
+        if not update_data:
+            return JsonResponse({'error': 'No fields to update'}, status=400)
+
+        update_data['updated_at'] = datetime.now()
+        category_ref.update(update_data)
+        
+        updated_category = category_ref.get().to_dict()
+        updated_category['id'] = category_id
+        return JsonResponse({'message': 'Category updated successfully!', 'category': updated_category}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Error editing category {category_id}: {str(e)}")
+        return JsonResponse({'error': f'Error editing category: {str(e)}'}, status=500)
+
+@csrf_exempt
+@admin_required
+def upload_category_image(request):
+    """Upload an image for a category"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Check if image file is provided
+        if 'image' not in request.FILES:
+            return JsonResponse({
+                'error': 'No image file provided',
+                'code': 'IMAGE_MISSING'
+            }, status=400)
+        
+        image_file = request.FILES['image']
+        
+        # Validate file type (optional but recommended)
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return JsonResponse({
+                'error': 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.',
+                'code': 'INVALID_FILE_TYPE'
+            }, status=400)
+        
+        # Validate file size (optional - limit to 10MB for category images)
+        max_size = 10 * 1024 * 1024  # 10MB in bytes
+        if image_file.size > max_size:
+            return JsonResponse({
+                'error': 'File size too large. Maximum size is 10MB for category images.',
+                'code': 'FILE_TOO_LARGE'
+            }, status=400)
+        
+        # Upload to Cloudinary using the utility function
+        # You might want a specific folder for category images, e.g., "category_images"
+        secure_url = upload_image_to_cloudinary_util(image_file, folder_name="category_images")
+        
+        if secure_url:
+            # Assuming request.admin is set by your admin_required decorator
+            admin_identifier = getattr(request, 'admin', 'Unknown Admin') 
+            logger.info(f"Category image uploaded successfully by admin '{admin_identifier}': {secure_url}")
+            return JsonResponse({
+                'success': True,
+                'image_url': secure_url,
+                'message': 'Image uploaded successfully'
+            }, status=200)
+        else:
+            admin_identifier = getattr(request, 'admin', 'Unknown Admin')
+            logger.error(f"Failed to upload category image for admin '{admin_identifier}'")
+            return JsonResponse({
+                'success': False, # Ensure success is false on failure
+                'error': 'Failed to upload image to cloud storage',
+                'code': 'UPLOAD_FAILED'
+            }, status=500)
+            
+    except Exception as e:
+        admin_identifier = getattr(request, 'admin', 'Unknown Admin')
+        logger.error(f"Error in upload_category_image for admin '{admin_identifier}': {str(e)}")
+        return JsonResponse({
+            'success': False, # Ensure success is false on error
             'error': 'Internal server error during image upload',
             'code': 'INTERNAL_ERROR'
         }, status=500)
