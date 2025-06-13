@@ -1,16 +1,8 @@
 [
   {
     "name": "iPhone 14 Pro Max",
-    "price": 129900,
-    "discount_price": 119900,
-    "discount": "8%",
     "rating": 4.7,
     "reviews": 1243,
-    "stock": 75,
-    "variant": {
-      "storage": ["128GB", "256GB", "512GB", "1TB"],
-      "colors": ["Space Black", "Deep Purple", "Gold", "Silver"]
-    },
     "category": "Smartphone",
     "brand": "Apple",
     "description": "The iPhone 14 Pro Max features Apple's A16 Bionic chip, a 48MP main camera, and an always-on display with Dynamic Island.",
@@ -33,20 +25,18 @@
       "battery": "4323mAh",
       "waterResistant": "IP68",
       "os": "iOS 16"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Space Black", "stock": 20, "price": 129900, "discounted_price": 119900 },
+      { "storage": "256GB", "colors": "Deep Purple", "stock": 15, "price": 139900, "discounted_price": 129900 },
+      { "storage": "512GB", "colors": "Gold", "stock": 20, "price": 149900, "discounted_price": 139900 },
+      { "storage": "1TB", "colors": "Silver", "stock": 20, "price": 159900, "discounted_price": 149900 }
+    ]
   },
   {
     "name": "iPhone 13",
-    "price": 69900,
-    "discount_price": 65900,
-    "discount": "6%",
     "rating": 4.6,
     "reviews": 2135,
-    "stock": 120,
-    "variant": {
-      "storage": ["128GB", "256GB", "512GB"],
-      "colors": ["Midnight", "Blue", "Pink", "Starlight", "Red"]
-    },
     "category": "Smartphone",
     "brand": "Apple",
     "description": "The iPhone 13 features an A15 Bionic chip, improved battery life, and enhanced camera system with Cinematic mode.",
@@ -69,20 +59,17 @@
       "battery": "3240mAh",
       "waterResistant": "IP68",
       "os": "iOS 15"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Midnight", "stock": 30, "price": 69900, "discounted_price": 65900 },
+      { "storage": "256GB", "colors": "Blue", "stock": 25, "price": 79900, "discounted_price": 75900 },
+      { "storage": "512GB", "colors": "Pink", "stock": 20, "price": 89900, "discounted_price": 85900 }
+    ]
   },
   {
     "name": "Samsung Galaxy S23 Ultra",
-    "price": 124999,
-    "discount_price": 114999,
-    "discount": "8%",
     "rating": 4.8,
     "reviews": 1572,
-    "stock": 65,
-    "variant": {
-      "storage": ["256GB", "512GB", "1TB"],
-      "colors": ["Phantom Black", "Green", "Cream", "Lavender"]
-    },
     "category": "Smartphone",
     "brand": "Samsung",
     "description": "The Galaxy S23 Ultra features a built-in S Pen, powerful Snapdragon 8 Gen 2 processor, and a 200MP main camera.",
@@ -105,20 +92,17 @@
       "battery": "5000mAh",
       "waterResistant": "IP68",
       "os": "Android 13"
-    }
+    },
+    "valid_options": [
+      { "storage": "256GB", "colors": "Phantom Black", "stock": 20, "price": 124999, "discounted_price": 114999 },
+      { "storage": "512GB", "colors": "Green", "stock": 15, "price": 134999, "discounted_price": 124999 },
+      { "storage": "1TB", "colors": "Cream", "stock": 10, "price": 144999, "discounted_price": 134999 }
+    ]
   },
   {
     "name": "Samsung Galaxy A53 5G",
-    "price": 34999,
-    "discount_price": 30999,
-    "discount": "11%",
     "rating": 4.3,
     "reviews": 1984,
-    "stock": 145,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Awesome Black", "Awesome White", "Awesome Blue", "Awesome Peach"]
-    },
     "category": "Smartphone",
     "brand": "Samsung",
     "description": "The Galaxy A53 5G offers a 120Hz display, 64MP quad camera, and 5G connectivity at a mid-range price.",
@@ -141,20 +125,16 @@
       "battery": "5000mAh",
       "waterResistant": "IP67",
       "os": "Android 12"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Awesome Black", "stock": 50, "price": 34999, "discounted_price": 30999 },
+      { "storage": "256GB", "colors": "Awesome White", "stock": 40, "price": 39999, "discounted_price": 35999 }
+    ]
   },
   {
     "name": "Oppo Find X5 Pro",
-    "price": 74999,
-    "discount_price": 66999,
-    "discount": "11%",
     "rating": 4.5,
     "reviews": 847,
-    "stock": 50,
-    "variant": {
-      "storage": ["256GB", "512GB"],
-      "colors": ["Ceramic White", "Glaze Black"]
-    },
     "category": "Smartphone",
     "brand": "Oppo",
     "description": "The Oppo Find X5 Pro features Hasselblad-tuned cameras, Snapdragon 8 Gen 1 processor, and 80W SuperVOOC charging.",
@@ -177,20 +157,16 @@
       "battery": "5000mAh",
       "waterResistant": "IP68",
       "os": "ColorOS 12.1"
-    }
+    },
+    "valid_options": [
+      { "storage": "256GB", "colors": "Ceramic White", "stock": 25, "price": 74999, "discounted_price": 66999 },
+      { "storage": "512GB", "colors": "Glaze Black", "stock": 15, "price": 84999, "discounted_price": 76999 }
+    ]
   },
   {
     "name": "Oppo Reno 7",
-    "price": 28999,
-    "discount_price": 26999,
-    "discount": "6%",
     "rating": 4.2,
     "reviews": 631,
-    "stock": 85,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Starry Black", "Startrails Blue"]
-    },
     "category": "Smartphone",
     "brand": "Oppo",
     "description": "The Oppo Reno 7 features a sleek design, 64MP triple camera, and 33W fast charging capability.",
@@ -213,20 +189,16 @@
       "battery": "4500mAh",
       "waterResistant": "IPX4",
       "os": "ColorOS 12"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Starry Black", "stock": 40, "price": 28999, "discounted_price": 26999 },
+      { "storage": "256GB", "colors": "Startrails Blue", "stock": 30, "price": 32999, "discounted_price": 29999 }
+    ]
   },
   {
     "name": "Vivo X80 Pro",
-    "price": 79999,
-    "discount_price": 74999,
-    "discount": "6%",
     "rating": 4.6,
     "reviews": 724,
-    "stock": 55,
-    "variant": {
-      "storage": ["256GB", "512GB"],
-      "colors": ["Cosmic Black", "Urban Blue"]
-    },
     "category": "Smartphone",
     "brand": "Vivo",
     "description": "The Vivo X80 Pro features Zeiss optics, Snapdragon 8 Gen 1, and advanced camera capabilities with V1+ imaging chip.",
@@ -249,20 +221,16 @@
       "battery": "4700mAh",
       "waterResistant": "IP68",
       "os": "Funtouch OS 12"
-    }
+    },
+    "valid_options": [
+      { "storage": "256GB", "colors": "Cosmic Black", "stock": 30, "price": 79999, "discounted_price": 74999 },
+      { "storage": "512GB", "colors": "Urban Blue", "stock": 20, "price": 89999, "discounted_price": 84999 }
+    ]
   },
   {
     "name": "Vivo Y73",
-    "price": 18999,
-    "discount_price": 17499,
-    "discount": "7%",
     "rating": 4.1,
     "reviews": 512,
-    "stock": 110,
-    "variant": {
-      "storage": ["128GB"],
-      "colors": ["Diamond Flare", "Roman Black"]
-    },
     "category": "Smartphone",
     "brand": "Vivo",
     "description": "The Vivo Y73 offers a slim design, 64MP main camera, and fast charging at an affordable price point.",
@@ -285,20 +253,16 @@
       "battery": "4000mAh",
       "waterResistant": "No",
       "os": "Funtouch OS 11.1"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Diamond Flare", "stock": 50, "price": 18999, "discounted_price": 17499 },
+      { "storage": "128GB", "colors": "Roman Black", "stock": 60, "price": 18999, "discounted_price": 17499 }
+    ]
   },
   {
     "name": "Xiaomi 12 Pro",
-    "price": 62999,
-    "discount_price": 59999,
-    "discount": "6%",
     "rating": 4.5,
     "reviews": 918,
-    "stock": 70,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Blue", "Purple", "Grey"]
-    },
     "category": "Smartphone",
     "brand": "MI",
     "description": "The Xiaomi 12 Pro features a 120Hz AMOLED display, Snapdragon 8 Gen 1, and triple 50MP camera system.",
@@ -321,20 +285,16 @@
       "battery": "4600mAh",
       "waterResistant": "IP68",
       "os": "MIUI 13"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Blue", "stock": 35, "price": 62999, "discounted_price": 59999 },
+      { "storage": "256GB", "colors": "Purple", "stock": 25, "price": 69999, "discounted_price": 65999 }
+    ]
   },
   {
     "name": "Redmi Note 11",
-    "price": 15999,
-    "discount_price": 14799,
-    "discount": "8%",
     "rating": 4.3,
     "reviews": 1432,
-    "stock": 180,
-    "variant": {
-      "storage": ["64GB", "128GB"],
-      "colors": ["Graphite Gray", "Polar White", "Star Blue"]
-    },
     "category": "Smartphone",
     "brand": "MI",
     "description": "The Redmi Note 11 offers a 90Hz AMOLED display, 50MP quad camera, and fast charging capabilities at a budget price.",
@@ -357,20 +317,17 @@
       "battery": "5000mAh",
       "waterResistant": "IP53",
       "os": "MIUI 13"
-    }
+    },
+    "valid_options": [
+      { "storage": "64GB", "colors": "Graphite Gray", "stock": 60, "price": 15999, "discounted_price": 14799 },
+      { "storage": "128GB", "colors": "Polar White", "stock": 50, "price": 17999, "discounted_price": 15999 },
+      { "storage": "128GB", "colors": "Star Blue", "stock": 70, "price": 17999, "discounted_price": 15999 }
+    ]
   },
   {
     "name": "OnePlus 11",
-    "price": 61999,
-    "discount_price": 57999,
-    "discount": "6%",
     "rating": 4.7,
     "reviews": 1043,
-    "stock": 60,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Eternal Green", "Titan Black"]
-    },
     "category": "Smartphone",
     "brand": "Oneplus",
     "description": "The OnePlus 11 features Hasselblad cameras, Snapdragon 8 Gen 2, and incredibly fast 100W charging.",
@@ -393,56 +350,16 @@
       "battery": "5000mAh",
       "waterResistant": "IP64",
       "os": "OxygenOS 13"
-    }
-  },
-  {
-    "name": "OnePlus Nord CE 2",
-    "price": 24999,
-    "discount_price": 23499,
-    "discount": "6%",
-    "rating": 4.4,
-    "reviews": 876,
-    "stock": 95,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Gray Mirror", "Bahama Blue"]
     },
-    "category": "Smartphone",
-    "brand": "Oneplus",
-    "description": "The OnePlus Nord CE 2 offers a 90Hz AMOLED display, fast charging, and solid performance at a mid-range price.",
-    "images": [
-      "https://example.com/nordce2_1.jpg",
-      "https://example.com/nordce2_2.jpg",
-      "https://example.com/nordce2_3.jpg"
-    ],
-    "features": [
-      "65W SUPERVOOC charging",
-      "90Hz Fluid AMOLED display",
-      "MediaTek Dimensity 900",
-      "3.5mm headphone jack",
-      "OxygenOS 11"
-    ],
-    "specifications": {
-      "display": "6.43-inch Fluid AMOLED",
-      "processor": "MediaTek Dimensity 900",
-      "camera": "64MP + 8MP + 2MP",
-      "battery": "4500mAh",
-      "waterResistant": "No",
-      "os": "OxygenOS 11"
-    }
+    "valid_options": [
+      { "storage": "128GB", "colors": "Eternal Green", "stock": 30, "price": 61999, "discounted_price": 57999 },
+      { "storage": "256GB", "colors": "Titan Black", "stock": 25, "price": 64999, "discounted_price": 60999 }
+    ]
   },
   {
     "name": "Nothing Phone (1)",
-    "price": 29999,
-    "discount_price": 26999,
-    "discount": "10%",
     "rating": 4.6,
     "reviews": 1243,
-    "stock": 55,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Black", "White"]
-    },
     "category": "Smartphone",
     "brand": "Nothing",
     "description": "The Nothing Phone (1) features a unique transparent design with Glyph Interface LEDs and a clean user experience.",
@@ -465,20 +382,16 @@
       "battery": "4500mAh",
       "waterResistant": "IP53",
       "os": "Nothing OS"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Black", "stock": 25, "price": 29999, "discounted_price": 26999 },
+      { "storage": "256GB", "colors": "White", "stock": 20, "price": 34999, "discounted_price": 31999 }
+    ]
   },
   {
     "name": "Nothing Phone (2)",
-    "price": 44999,
-    "discount_price": 41999,
-    "discount": "7%",
     "rating": 4.7,
     "reviews": 576,
-    "stock": 40,
-    "variant": {
-      "storage": ["128GB", "256GB", "512GB"],
-      "colors": ["Dark Grey", "White"]
-    },
     "category": "Smartphone",
     "brand": "Nothing",
     "description": "The Nothing Phone (2) builds upon the original with improved Glyph Interface, better performance, and enhanced cameras.",
@@ -501,56 +414,17 @@
       "battery": "4700mAh",
       "waterResistant": "IP54",
       "os": "Nothing OS 2.0"
-    }
-  },
-  {
-    "name": "Motorola Edge 30 Ultra",
-    "price": 59999,
-    "discount_price": 54999,
-    "discount": "6%",
-    "rating": 4.5,
-    "reviews": 687,
-    "stock": 65,
-    "variant": {
-      "storage": ["128GB", "256GB", "512GB"],
-      "colors": ["Interstellar Black", "Starlight White"]
     },
-    "category": "Smartphone",
-    "brand": "Motorola",
-    "description": "The Motorola Edge 30 Ultra features a 200MP camera, Snapdragon 8+ Gen 1, and incredibly fast 125W charging.",
-    "images": [
-      "https://example.com/edge30ultra_1.jpg",
-      "https://example.com/edge30ultra_2.jpg",
-      "https://example.com/edge30ultra_3.jpg"
-    ],
-    "features": [
-      "200MP main camera",
-      "125W TurboPower charging",
-      "50W wireless charging",
-      "144Hz pOLED display",
-      "Near-stock Android experience"
-    ],
-    "specifications": {
-      "display": "6.67-inch pOLED",
-      "processor": "Snapdragon 8+ Gen 1",
-      "camera": "200MP + 50MP + 12MP",
-      "battery": "4610mAh",
-      "waterResistant": "IP52",
-      "os": "Android 12"
-    }
+    "valid_options": [
+      { "storage": "128GB", "colors": "Dark Grey", "stock": 15, "price": 44999, "discounted_price": 41999 },
+      { "storage": "256GB", "colors": "White", "stock": 10, "price": 49999, "discounted_price": 46999 },
+      { "storage": "512GB", "colors": "Dark Grey", "stock": 5, "price": 54999, "discounted_price": 51999 }
+    ]
   },
   {
     "name": "Motorola Moto G Power",
-    "price": 14999,
-    "discount_price": 13999,
-    "discount": "7%",
     "rating": 4.2,
     "reviews": 943,
-    "stock": 120,
-    "variant": {
-      "storage": ["64GB", "128GB"],
-      "colors": ["Ice Blue", "Midnight Blue"]
-    },
     "category": "Smartphone",
     "brand": "Motorola",
     "description": "The Motorola Moto G Power offers exceptional battery life with its 5000mAh battery and solid performance at an affordable price.",
@@ -573,56 +447,16 @@
       "battery": "5000mAh",
       "waterResistant": "Water-repellent design",
       "os": "Android 11"
-    }
-  },
-  {
-    "name": "iQOO 11",
-    "price": 59999,
-    "discount_price": 55999,
-    "discount": "6%",
-    "rating": 4.6,
-    "reviews": 542,
-    "stock": 50,
-    "variant": {
-      "storage": ["128GB", "256GB", "512GB"],
-      "colors": ["Legend", "Alpha"]
     },
-    "category": "Smartphone",
-    "brand": "iQOO",
-    "description": "The iQOO 11 features a Snapdragon 8 Gen 2 processor, 144Hz E6 AMOLED display, and 120W fast charging.",
-    "images": [
-      "https://example.com/iqoo11_1.jpg",
-      "https://example.com/iqoo11_2.jpg",
-      "https://example.com/iqoo11_3.jpg"
-    ],
-    "features": [
-      "Snapdragon 8 Gen 2",
-      "144Hz E6 AMOLED display",
-      "120W FlashCharge",
-      "V2 gaming chip",
-      "BMW M Motorsport Edition"
-    ],
-    "specifications": {
-      "display": "6.78-inch E6 AMOLED",
-      "processor": "Snapdragon 8 Gen 2",
-      "camera": "50MP + 8MP + 13MP",
-      "battery": "5000mAh",
-      "waterResistant": "IP64",
-      "os": "Funtouch OS 13"
-    }
+    "valid_options": [
+      { "storage": "64GB", "colors": "Ice Blue", "stock": 60, "price": 14999, "discounted_price": 13999 },
+      { "storage": "128GB", "colors": "Midnight Blue", "stock": 50, "price": 16999, "discounted_price": 15999 }
+    ]
   },
   {
     "name": "iQOO Z6",
-    "price": 16999,
-    "discount_price": 15799,
-    "discount": "7%",
     "rating": 4.3,
     "reviews": 612,
-    "stock": 85,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Chromatic Blue", "Raven Black"]
-    },
     "category": "Smartphone",
     "brand": "iQOO",
     "description": "The iQOO Z6 offers 5G connectivity, 120Hz display, and 80W FlashCharge technology at a mid-range price point.",
@@ -645,20 +479,16 @@
       "battery": "4500mAh",
       "waterResistant": "No",
       "os": "Funtouch OS 12"
-    }
+    },
+    "valid_options": [
+      { "storage": "128GB", "colors": "Chromatic Blue", "stock": 40, "price": 16999, "discounted_price": 15799 },
+      { "storage": "256GB", "colors": "Raven Black", "stock": 30, "price": 18999, "discounted_price": 16999 }
+    ]
   },
   {
     "name": "Lava Agni 5G",
-    "price": 19999,
-    "discount_price": 18499,
-    "discount": "8%",
     "rating": 4.1,
     "reviews": 324,
-    "stock": 70,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Fiery Blue"]
-    },
     "category": "Smartphone",
     "brand": "Lava",
     "description": "The Lava Agni 5G is India's first 5G smartphone with a 64MP quad camera, MediaTek Dimensity 810, and fast charging.",
@@ -681,56 +511,16 @@
       "battery": "5000mAh",
       "waterResistant": "No",
       "os": "Android 11"
-    }
-  },
-  {
-    "name": "Lava Blaze Pro",
-    "price": 10999,
-    "discount_price": 9999,
-    "discount": "7%",
-    "rating": 3.9,
-    "reviews": 218,
-    "stock": 100,
-    "variant": {
-      "storage": ["64GB", "128GB"],
-      "colors": ["Glass Blue", "Glass Green", "Glass Gold"]
     },
-    "category": "Smartphone",
-    "brand": "Lava",
-    "description": "The Lava Blaze Pro offers a 50MP camera, glass back design, and decent performance at a budget-friendly price.",
-    "images": [
-      "https://example.com/blazepro_1.jpg",
-      "https://example.com/blazepro_2.jpg",
-      "https://example.com/blazepro_3.jpg"
-    ],
-    "features": [
-      "50MP AI triple camera",
-      "Glass back design",
-      "18W fast charging",
-      "90Hz display",
-      "Side fingerprint sensor"
-    ],
-    "specifications": {
-      "display": "6.5-inch HD+ IPS LCD",
-      "processor": "MediaTek Helio G37",
-      "camera": "50MP + 2MP + 2MP",
-      "battery": "5000mAh",
-      "waterResistant": "No",
-      "os": "Android 12"
-    }
+    "valid_options": [
+      { "storage": "128GB", "colors": "Fiery Blue", "stock": 40, "price": 19999, "discounted_price": 18499 },
+      { "storage": "256GB", "colors": "Fiery Blue", "stock": 30, "price": 21999, "discounted_price": 19999 }
+    ]
   },
   {
     "name": "Nokia X30 5G",
-    "price": 36999,
-    "discount_price": 34999,
-    "discount": "6%",
     "rating": 4.3,
     "reviews": 487,
-    "stock": 60,
-    "variant": {
-      "storage": ["128GB", "256GB"],
-      "colors": ["Cloudy Blue", "Ice White"]
-    },
     "category": "Smartphone",
     "brand": "Nokia",
     "description": "The Nokia X30 5G features a PureView 50MP camera, eco-friendly recycled materials, and 3 years of OS updates.",
@@ -753,57 +543,16 @@
       "battery": "4200mAh",
       "waterResistant": "IP67",
       "os": "Android 12"
-    }
-  },
-  {
-    "name": "Nokia G21",
-    "price": 12999,
-    "discount_price": 11700,
-    "discount": "10%",
-    "rating": 4.0,
-    "reviews": 362,
-    "stock": 120,
-    "variant": {
-      "storage": ["64GB", "128GB"],
-      "colors": ["Nordic Blue", "Dusk"]
     },
-    "category": "Smartphone",
-    "brand": "Nokia",
-    "description": "The Nokia G21 offers 3-day battery life, 50MP triple camera, and 2 years of Android updates at an affordable price.",
-    "images": [
-      "https://example.com/nokiag21_1.jpg",
-      "https://example.com/nokiag21_2.jpg",
-      "https://example.com/nokiag21_3.jpg"
-    ],
-    "features": [
-      "3-day battery life",
-      "50MP triple camera",
-      "90Hz refresh rate",
-      "2 years of Android updates",
-      "3 years of security updates"
-    ],
-    "specifications": {
-      "display": "6.5-inch HD+ LCD",
-      "processor": "Unisoc T606",
-      "camera": "50MP + 2MP + 2MP",
-      "battery": "5050mAh",
-      "waterResistant": "No",
-      "os": "Android 11"
-    }
+    "valid_options": [
+      { "storage": "128GB", "colors": "Cloudy Blue", "stock": 30, "price": 36999, "discounted_price": 34999 },
+      { "storage": "256GB", "colors": "Ice White", "stock": 20, "price": 39999, "discounted_price": 37999 }
+    ]
   },
   {
     "name": "Samsung Galaxy Book3 Pro",
-    "price": 129990,
-    "discount_price": 119990,
-    "discount": "8%",
     "rating": 4.6,
     "reviews": 312,
-    "stock": 40,
-    "variant": {
-      "ram": ["16GB"],
-      "storage": ["512GB SSD", "1TB SSD"],
-      "colors": ["Graphite", "Beige"]
-    },
     "category": "Laptop",
     "brand": "Samsung",
     "description": "Samsung Galaxy Book3 Pro features a 13th Gen Intel Core i7 processor, AMOLED display, and ultra-slim design.",
@@ -825,57 +574,16 @@
       "storage": "512GB/1TB SSD",
       "battery": "76Wh",
       "os": "Windows 11"
-    }
-  },
-  {
-    "name": "Samsung Galaxy Book2",
-    "price": 74990,
-    "discount_price": 69990,
-    "discount": "7%",
-    "rating": 4.4,
-    "reviews": 210,
-    "stock": 55,
-    "variant": {
-      "ram": ["8GB", "16GB"],
-      "storage": ["256GB SSD", "512GB SSD"],
-      "colors": ["Silver"]
     },
-    "category": "Laptop",
-    "brand": "Samsung",
-    "description": "Samsung Galaxy Book2 offers a lightweight design, Intel Core i5 processor, and fast SSD storage.",
-    "images": [
-      "https://example.com/galaxybook2_1.jpg",
-      "https://example.com/galaxybook2_2.jpg"
-    ],
-    "features": [
-      "Intel Core i5 12th Gen",
-      "Lightweight design",
-      "Full HD display",
-      "Fast SSD storage",
-      "Backlit keyboard"
-    ],
-    "specifications": {
-      "display": "15.6-inch FHD",
-      "processor": "Intel Core i5-1235U",
-      "ram": "8GB/16GB DDR4",
-      "storage": "256GB/512GB SSD",
-      "battery": "54Wh",
-      "os": "Windows 11"
-    }
+    "valid_options": [
+      { "ram": "16GB", "storage": "512GB SSD", "colors": "Graphite", "stock": 10, "price": 129990, "discounted_price": 119990 },
+      { "ram": "16GB", "storage": "1TB SSD", "colors": "Beige", "stock": 5, "price": 139990, "discounted_price": 129990 }
+    ]
   },
   {
     "name": "HP Spectre x360 14",
-    "price": 139999,
-    "discount_price": 129999,
-    "discount": "7%",
     "rating": 4.7,
     "reviews": 415,
-    "stock": 35,
-    "variant": {
-      "ram": ["16GB"],
-      "storage": ["512GB SSD", "1TB SSD"],
-      "colors": ["Nightfall Black", "Poseidon Blue"]
-    },
     "category": "Laptop",
     "brand": "HP",
     "description": "HP Spectre x360 14 is a premium 2-in-1 laptop with a 13th Gen Intel Core i7, OLED touch display, and long battery life.",
@@ -897,57 +605,16 @@
       "storage": "512GB/1TB SSD",
       "battery": "66Wh",
       "os": "Windows 11"
-    }
-  },
-  {
-    "name": "HP Pavilion 15",
-    "price": 65999,
-    "discount_price": 59999,
-    "discount": "9%",
-    "rating": 4.3,
-    "reviews": 298,
-    "stock": 60,
-    "variant": {
-      "ram": ["8GB", "16GB"],
-      "storage": ["512GB SSD"],
-      "colors": ["Silver", "Fog Blue"]
     },
-    "category": "Laptop",
-    "brand": "HP",
-    "description": "HP Pavilion 15 is a versatile laptop with 12th Gen Intel Core i5, FHD display, and fast SSD storage.",
-    "images": [
-      "https://example.com/hppavilion15_1.jpg",
-      "https://example.com/hppavilion15_2.jpg"
-    ],
-    "features": [
-      "12th Gen Intel Core i5",
-      "FHD IPS display",
-      "Fast SSD storage",
-      "Dual speakers",
-      "Long battery life"
-    ],
-    "specifications": {
-      "display": "15.6-inch FHD IPS",
-      "processor": "Intel Core i5-1235U",
-      "ram": "8GB/16GB DDR4",
-      "storage": "512GB SSD",
-      "battery": "41Wh",
-      "os": "Windows 11"
-    }
+    "valid_options": [
+      { "ram": "16GB", "storage": "512GB SSD", "colors": "Nightfall Black", "stock": 10, "price": 139999, "discounted_price": 129999 },
+      { "ram": "16GB", "storage": "1TB SSD", "colors": "Poseidon Blue", "stock": 5, "price": 149999, "discounted_price": 139999 }
+    ]
   },
   {
     "name": "Samsung Galaxy Tab S8 Ultra",
-    "price": 108999,
-    "discount_price": 99999,
-    "discount": "8%",
     "rating": 4.7,
     "reviews": 520,
-    "stock": 30,
-    "variant": {
-      "ram": ["8GB", "12GB"],
-      "storage": ["128GB", "256GB", "512GB"],
-      "colors": ["Graphite"]
-    },
     "category": "Tablet",
     "brand": "Samsung",
     "description": "Samsung Galaxy Tab S8 Ultra features a massive 14.6-inch Super AMOLED display, S Pen support, and a powerful Snapdragon 8 Gen 1 processor.",
@@ -969,57 +636,16 @@
       "storage": "128GB/256GB/512GB",
       "battery": "11200mAh",
       "os": "Android 12"
-    }
-  },
-  {
-    "name": "Samsung Galaxy Tab A8",
-    "price": 24999,
-    "discount_price": 22499,
-    "discount": "10%",
-    "rating": 4.3,
-    "reviews": 340,
-    "stock": 80,
-    "variant": {
-      "ram": ["3GB", "4GB"],
-      "storage": ["32GB", "64GB", "128GB"],
-      "colors": ["Gray", "Silver", "Pink Gold"]
     },
-    "category": "Tablet",
-    "brand": "Samsung",
-    "description": "Samsung Galaxy Tab A8 offers a 10.5-inch display, quad speakers, and a large battery for entertainment and productivity.",
-    "images": [
-      "https://example.com/galaxytaba8_1.jpg",
-      "https://example.com/galaxytaba8_2.jpg"
-    ],
-    "features": [
-      "10.5-inch display",
-      "Quad speakers with Dolby Atmos",
-      "Expandable storage",
-      "Long battery life",
-      "Kids mode"
-    ],
-    "specifications": {
-      "display": "10.5-inch TFT",
-      "processor": "Unisoc Tiger T618",
-      "ram": "3GB/4GB",
-      "storage": "32GB/64GB/128GB",
-      "battery": "7040mAh",
-      "os": "Android 11"
-    }
+    "valid_options": [
+      { "ram": "8GB", "storage": "128GB", "colors": "Graphite", "stock": 10, "price": 108999, "discounted_price": 99999 },
+      { "ram": "12GB", "storage": "256GB", "colors": "Graphite", "stock": 5, "price": 118999, "discounted_price": 109999 }
+    ]
   },
   {
     "name": "OnePlus Pad",
-    "price": 37999,
-    "discount_price": 34999,
-    "discount": "8%",
     "rating": 4.5,
     "reviews": 210,
-    "stock": 45,
-    "variant": {
-      "ram": ["8GB", "12GB"],
-      "storage": ["128GB", "256GB"],
-      "colors": ["Halo Green"]
-    },
     "category": "Tablet",
     "brand": "Oneplus",
     "description": "OnePlus Pad features an 11.61-inch 144Hz display, MediaTek Dimensity 9000, and a large 9510mAh battery.",
@@ -1041,57 +667,16 @@
       "storage": "128GB/256GB",
       "battery": "9510mAh",
       "os": "OxygenOS 13.1"
-    }
-  },
-  {
-    "name": "OnePlus Pad Go",
-    "price": 21999,
-    "discount_price": 19999,
-    "discount": "9%",
-    "rating": 4.2,
-    "reviews": 98,
-    "stock": 60,
-    "variant": {
-      "ram": ["8GB"],
-      "storage": ["128GB"],
-      "colors": ["Twin Mint"]
     },
-    "category": "Tablet",
-    "brand": "Oneplus",
-    "description": "OnePlus Pad Go is a budget-friendly tablet with an 11.35-inch 2.4K display and a large battery for all-day use.",
-    "images": [
-      "https://example.com/onepluspadgo_1.jpg",
-      "https://example.com/onepluspadgo_2.jpg"
-    ],
-    "features": [
-      "11.35-inch 2.4K display",
-      "Quad speakers",
-      "8000mAh battery",
-      "Split screen mode",
-      "Fast charging"
-    ],
-    "specifications": {
-      "display": "11.35-inch 2.4K LCD",
-      "processor": "MediaTek Helio G99",
-      "ram": "8GB",
-      "storage": "128GB",
-      "battery": "8000mAh",
-      "os": "OxygenOS 13.2"
-    }
+    "valid_options": [
+      { "ram": "8GB", "storage": "128GB", "colors": "Halo Green", "stock": 20, "price": 37999, "discounted_price": 34999 },
+      { "ram": "12GB", "storage": "256GB", "colors": "Halo Green", "stock": 15, "price": 42999, "discounted_price": 39999 }
+    ]
   },
   {
     "name": "Xiaomi Pad 6",
-    "price": 26999,
-    "discount_price": 24999,
-    "discount": "7%",
     "rating": 4.4,
     "reviews": 180,
-    "stock": 70,
-    "variant": {
-      "ram": ["6GB", "8GB"],
-      "storage": ["128GB", "256GB"],
-      "colors": ["Graphite Gray", "Mist Blue", "Champagne"]
-    },
     "category": "Tablet",
     "brand": "MI",
     "description": "Xiaomi Pad 6 features an 11-inch 2.8K 144Hz display, Snapdragon 870, and a slim metal body.",
@@ -1113,21 +698,16 @@
       "storage": "128GB/256GB",
       "battery": "8840mAh",
       "os": "MIUI 14"
-    }
+    },
+    "valid_options": [
+      { "ram": "6GB", "storage": "128GB", "colors": "Graphite Gray", "stock": 30, "price": 26999, "discounted_price": 24999 },
+      { "ram": "8GB", "storage": "256GB", "colors": "Mist Blue", "stock": 20, "price": 29999, "discounted_price": 27999 }
+    ]
   },
   {
     "name": "Redmi Pad",
-    "price": 17999,
-    "discount_price": 15999,
-    "discount": "11%",
     "rating": 4.1,
     "reviews": 120,
-    "stock": 90,
-    "variant": {
-      "ram": ["4GB", "6GB", "8GB"],
-      "storage": ["64GB", "128GB", "256GB"],
-      "colors": ["Graphite Gray", "Moonlight Silver", "Mint Green"]
-    },
     "category": "Tablet",
     "brand": "MI",
     "description": "Redmi Pad is a value-for-money tablet with a 10.61-inch 2K display, MediaTek Helio G99, and a large battery.",
@@ -1149,57 +729,17 @@
       "storage": "64GB/128GB/256GB",
       "battery": "8000mAh",
       "os": "MIUI 13"
-    }
-  },
-  {
-    "name": "Motorola Moto Tab G70",
-    "price": 21999,
-    "discount_price": 19999,
-    "discount": "9%",
-    "rating": 4.3,
-    "reviews": 75,
-    "stock": 50,
-    "variant": {
-      "ram": ["4GB"],
-      "storage": ["64GB"],
-      "colors": ["Modernist Teal"]
     },
-    "category": "Tablet",
-    "brand": "Motorola",
-    "description": "Moto Tab G70 features an 11-inch 2K display, MediaTek Helio G90T, and a sturdy metal body.",
-    "images": [
-      "https://example.com/mototabg70_1.jpg",
-      "https://example.com/mototabg70_2.jpg"
-    ],
-    "features": [
-      "11-inch 2K display",
-      "Quad speakers with Dolby Atmos",
-      "Metal body",
-      "7700mAh battery",
-      "Google Kids Space"
-    ],
-    "specifications": {
-      "display": "11-inch 2K LCD",
-      "processor": "MediaTek Helio G90T",
-      "ram": "4GB",
-      "storage": "64GB",
-      "battery": "7700mAh",
-      "os": "Android 11"
-    }
+    "valid_options": [
+      { "ram": "4GB", "storage": "64GB", "colors": "Graphite Gray", "stock": 30, "price": 17999, "discounted_price": 15999 },
+      { "ram": "6GB", "storage": "128GB", "colors": "Moonlight Silver", "stock": 20, "price": 19999, "discounted_price": 17999 },
+      { "ram": "8GB", "storage": "256GB", "colors": "Mint Green", "stock": 10, "price": 21999, "discounted_price": 19999 }
+    ]
   },
   {
     "name": "Motorola Moto Tab G20",
-    "price": 10999,
-    "discount_price": 9999,
-    "discount": "9%",
     "rating": 4.0,
     "reviews": 60,
-    "stock": 80,
-    "variant": {
-      "ram": ["3GB"],
-      "storage": ["32GB"],
-      "colors": ["Platinum Grey"]
-    },
     "category": "Tablet",
     "brand": "Motorola",
     "description": "Moto Tab G20 is a compact and affordable tablet with an 8-inch HD+ display and a lightweight design.",
@@ -1221,52 +761,15 @@
       "storage": "32GB",
       "battery": "5100mAh",
       "os": "Android 11"
-    }
-  },
-  {
-    "name": "Xiaomi Smart TV X Series 55",
-    "price": 42999,
-    "discount_price": 38999,
-    "discount": "9%",
-    "rating": 4.5,
-    "reviews": 320,
-    "stock": 60,
-    "variant": {
-      "size": ["55 inch"],
-      "resolution": ["4K UHD"],
-      "colors": ["Black"]
     },
-    "category": "Television",
-    "brand": "Xiaomi",
-    "description": "Xiaomi Smart TV X Series 55 features a 4K UHD display, Dolby Vision, and PatchWall with Android TV.",
-    "images": [
-      "https://example.com/xiaomi_tv_x_55_1.jpg",
-      "https://example.com/xiaomi_tv_x_55_2.jpg"
-    ],
-    "features": [
-      "4K UHD display",
-      "Dolby Vision & Atmos",
-      "Android TV 10",
-      "PatchWall",
-      "Google Assistant"
-    ],
-    "specifications": {
-      "display": "55-inch 4K UHD",
-      "resolution": "3840x2160",
-      "os": "Android TV 10",
-      "hdmi_ports": 3,
-      "usb_ports": 2,
-      "speaker_output": "30W"
-    }
+    "valid_options": [
+      { "ram": "3GB", "storage": "32GB", "colors": "Platinum Grey", "stock": 50, "price": 10999, "discounted_price": 9999 }
+    ]
   },
   {
     "name": "Xiaomi Smart TV 5A 43",
-    "price": 29999,
-    "discount_price": 26999,
-    "discount": "10%",
     "rating": 4.3,
     "reviews": 210,
-    "stock": 80,
     "variant": {
       "size": ["43 inch"],
       "resolution": ["Full HD"],
@@ -1293,52 +796,15 @@
       "hdmi_ports": 2,
       "usb_ports": 2,
       "speaker_output": "24W"
-    }
-  },
-  {
-    "name": "Mi TV 5X 50",
-    "price": 39999,
-    "discount_price": 35999,
-    "discount": "10%",
-    "rating": 4.4,
-    "reviews": 185,
-    "stock": 55,
-    "variant": {
-      "size": ["50 inch"],
-      "resolution": ["4K UHD"],
-      "colors": ["Black"]
     },
-    "category": "Television",
-    "brand": "Mi",
-    "description": "Mi TV 5X 50 features a 4K HDR display, Dolby Vision, and 40W stereo speakers for immersive viewing.",
-    "images": [
-      "https://example.com/mi_tv_5x_50_1.jpg",
-      "https://example.com/mi_tv_5x_50_2.jpg"
-    ],
-    "features": [
-      "4K HDR display",
-      "Dolby Vision",
-      "40W stereo speakers",
-      "Android TV",
-      "PatchWall"
-    ],
-    "specifications": {
-      "display": "50-inch 4K HDR",
-      "resolution": "3840x2160",
-      "os": "Android TV 10",
-      "hdmi_ports": 3,
-      "usb_ports": 2,
-      "speaker_output": "40W"
-    }
+    "valid_options": [
+      { "size": "43 inch", "resolution": "Full HD", "colors": "Black", "stock": 80, "price": 29999, "discounted_price": 26999 }
+    ]
   },
   {
     "name": "Mi TV 4A Horizon 40",
-    "price": 24999,
-    "discount_price": 21999,
-    "discount": "12%",
     "rating": 4.2,
     "reviews": 140,
-    "stock": 70,
     "variant": {
       "size": ["40 inch"],
       "resolution": ["Full HD"],
@@ -1365,79 +831,10 @@
       "hdmi_ports": 2,
       "usb_ports": 2,
       "speaker_output": "20W"
-    }
-  },
-  {
-    "name": "NVW Ultra HD Smart TV 50",
-    "price": 27999,
-    "discount_price": 24999,
-    "discount": "11%",
-    "rating": 4.1,
-    "reviews": 60,
-    "stock": 40,
-    "variant": {
-      "size": ["50 inch"],
-      "resolution": ["4K UHD"],
-      "colors": ["Black"]
     },
-    "category": "Television",
-    "brand": "Nvw",
-    "description": "NVW Ultra HD Smart TV 50 offers a 4K UHD display, smart connectivity, and powerful sound output.",
-    "images": [
-      "https://example.com/nvw_tv_uhd_50_1.jpg",
-      "https://example.com/nvw_tv_uhd_50_2.jpg"
-    ],
-    "features": [
-      "4K UHD display",
-      "Smart TV features",
-      "Multiple HDMI/USB ports",
-      "Powerful sound",
-      "Screen mirroring"
-    ],
-    "specifications": {
-      "display": "50-inch 4K UHD",
-      "resolution": "3840x2160",
-      "os": "Android",
-      "hdmi_ports": 3,
-      "usb_ports": 2,
-      "speaker_output": "30W"
-    }
-  },
-  {
-    "name": "NVW HD Ready TV 32",
-    "price": 12999,
-    "discount_price": 11999,
-    "discount": "8%",
-    "rating": 4.0,
-    "reviews": 35,
-    "stock": 90,
-    "variant": {
-      "size": ["32 inch"],
-      "resolution": ["HD Ready"],
-      "colors": ["Black"]
-    },
-    "category": "Television",
-    "brand": "Nvw",
-    "description": "NVW HD Ready TV 32 is a compact TV with HD Ready resolution, HDMI/USB connectivity, and clear sound.",
-    "images": [
-      "https://example.com/nvw_tv_hd_32_1.jpg",
-      "https://example.com/nvw_tv_hd_32_2.jpg"
-    ],
-    "features": [
-      "HD Ready display",
-      "Multiple connectivity options",
-      "Clear sound",
-      "Energy efficient",
-      "Wall mountable"
-    ],
-    "specifications": {
-      "display": "32-inch HD Ready",
-      "resolution": "1366x768",
-      "os": "Linux",
-      "hdmi_ports": 2,
-      "usb_ports": 2,
-      "speaker_output": "16W"
-    }
+    "valid_options": [
+      { "size": "40 inch", "resolution": "Full HD", "colors": "Black", "stock": 70, "price": 24999, "discounted_price": 21999 }
+    ]
   },
   {
     "name": "Cellecor 4K Smart TV 43",
@@ -1473,43 +870,10 @@
       "hdmi_ports": 3,
       "usb_ports": 2,
       "speaker_output": "24W"
-    }
-  },
-  {
-    "name": "Cellecor HD Ready TV 32",
-    "price": 9999,
-    "discount_price": 8999,
-    "discount": "10%",
-    "rating": 3.9,
-    "reviews": 15,
-    "stock": 70,
-    "variant": {
-      "size": ["32 inch"],
-      "resolution": ["HD Ready"],
-      "colors": ["Black"]
     },
-    "category": "Television",
-    "brand": "Cellecor",
-    "description": "Cellecor HD Ready TV 32 is an affordable TV with HD Ready resolution, HDMI/USB ports, and good sound.",
-    "images": [
-      "https://example.com/cellecor_tv_hd_32_1.jpg",
-      "https://example.com/cellecor_tv_hd_32_2.jpg"
-    ],
-    "features": [
-      "HD Ready display",
-      "Affordable price",
-      "Good sound",
-      "Multiple connectivity",
-      "Energy efficient"
-    ],
-    "specifications": {
-      "display": "32-inch HD Ready",
-      "resolution": "1366x768",
-      "os": "Linux",
-      "hdmi_ports": 2,
-      "usb_ports": 2,
-      "speaker_output": "16W"
-    }
+    "valid_options": [
+      { "size": "43 inch", "resolution": "4K UHD", "colors": "Black", "stock": 50, "price": 21999, "discounted_price": 19999 }
+    ]
   },
   {
     "name": "Zebronics Zeb-Thunder Wireless",
@@ -1541,39 +905,12 @@
       "battery": "9 hours",
       "connectivity": "Bluetooth, AUX, USB, FM",
       "weight": "350g"
-    }
-  },
-  {
-    "name": "Zebronics Zeb-County",
-    "price": 999,
-    "discount_price": 799,
-    "discount": "20%",
-    "rating": 4.0,
-    "reviews": 320,
-    "stock": 150,
-    "variant": {
-      "colors": ["Black", "Blue", "Green"]
     },
-    "category": "Speaker",
-    "brand": "Zebronics",
-    "description": "Zebronics Zeb-County is a portable Bluetooth speaker with built-in FM, USB, and microSD support.",
-    "images": [
-      "https://example.com/zeb_county_1.jpg",
-      "https://example.com/zeb_county_2.jpg"
-    ],
-    "features": [
-      "Portable design",
-      "FM Radio",
-      "USB & microSD support",
-      "Bluetooth 5.0",
-      "Carry handle"
-    ],
-    "specifications": {
-      "output_power": "3W",
-      "battery": "10 hours",
-      "connectivity": "Bluetooth, AUX, USB, FM, microSD",
-      "weight": "250g"
-    }
+    "valid_options": [
+      { "colors": "Black", "stock": 40, "price": 1499, "discounted_price": 1299 },
+      { "colors": "Blue", "stock": 40, "price": 1499, "discounted_price": 1299 },
+      { "colors": "Red", "stock": 40, "price": 1499, "discounted_price": 1299 }
+    ]
   },
   {
     "name": "JBL Flip 6",
@@ -1605,39 +942,13 @@
       "battery": "12 hours",
       "connectivity": "Bluetooth 5.1",
       "weight": "550g"
-    }
-  },
-  {
-    "name": "JBL Go 3",
-    "price": 3499,
-    "discount_price": 2999,
-    "discount": "14%",
-    "rating": 4.5,
-    "reviews": 1100,
-    "stock": 100,
-    "variant": {
-      "colors": ["Black", "Blue", "Pink", "White"]
     },
-    "category": "Speaker",
-    "brand": "JBL",
-    "description": "JBL Go 3 is an ultra-portable Bluetooth speaker with bold sound and stylish design.",
-    "images": [
-      "https://example.com/jbl_go3_1.jpg",
-      "https://example.com/jbl_go3_2.jpg"
-    ],
-    "features": [
-      "Ultra-portable design",
-      "IP67 waterproof & dustproof",
-      "5 hours playtime",
-      "Bold sound",
-      "Integrated loop"
-    ],
-    "specifications": {
-      "output_power": "4.2W",
-      "battery": "5 hours",
-      "connectivity": "Bluetooth 5.1",
-      "weight": "209g"
-    }
+    "valid_options": [
+      { "colors": "Black", "stock": 15, "price": 11999, "discounted_price": 10499 },
+      { "colors": "Blue", "stock": 15, "price": 11999, "discounted_price": 10499 },
+      { "colors": "Red", "stock": 15, "price": 11999, "discounted_price": 10499 },
+      { "colors": "Grey", "stock": 15, "price": 11999, "discounted_price": 10499 }
+    ]
   },
   {
     "name": "Ultra Prolink Boom 10",
@@ -1669,7 +980,10 @@
       "battery": "6 hours",
       "connectivity": "Bluetooth, AUX",
       "weight": "400g"
-    }
+    },
+    "valid_options": [
+      { "colors": "Black", "stock": 40, "price": 2499, "discounted_price": 2199 }
+    ]
   },
   {
     "name": "Ultra Prolink UPL Sound Drum",
@@ -1701,38 +1015,11 @@
       "battery": "6 hours",
       "connectivity": "Bluetooth, AUX",
       "weight": "320g"
-    }
-  },
-  {
-    "name": "Edifier R1280T",
-    "price": 6999,
-    "discount_price": 6499,
-    "discount": "7%",
-    "rating": 4.6,
-    "reviews": 210,
-    "stock": 30,
-    "variant": {
-      "colors": ["Wood", "Black"]
     },
-    "category": "Speaker",
-    "brand": "Edifier",
-    "description": "Edifier R1280T is a bookshelf speaker with studio sound quality and dual RCA input.",
-    "images": [
-      "https://example.com/edifier_r1280t_1.jpg",
-      "https://example.com/edifier_r1280t_2.jpg"
-    ],
-    "features": [
-      "Studio sound quality",
-      "Dual RCA input",
-      "Classic wood finish",
-      "Remote control",
-      "Bass & treble control"
-    ],
-    "specifications": {
-      "output_power": "42W",
-      "connectivity": "RCA, AUX",
-      "weight": "4.9kg"
-    }
+    "valid_options": [
+      { "colors": "Black", "stock": 40, "price": 1799, "discounted_price": 1599 },
+      { "colors": "Blue", "stock": 50, "price": 1799, "discounted_price": 1599 }
+    ]
   },
   {
     "name": "Edifier MP200",
@@ -1764,39 +1051,12 @@
       "battery": "8 hours",
       "connectivity": "Bluetooth, AUX, microSD",
       "weight": "175g"
-    }
-  },
-  {
-    "name": "Digitek DBS-011",
-    "price": 1599,
-    "discount_price": 1399,
-    "discount": "13%",
-    "rating": 4.1,
-    "reviews": 70,
-    "stock": 80,
-    "variant": {
-      "colors": ["Black"]
     },
-    "category": "Speaker",
-    "brand": "Digiteck",
-    "description": "Digitek DBS-011 is a portable Bluetooth speaker with 10W output and TWS function.",
-    "images": [
-      "https://example.com/digitek_dbs011_1.jpg",
-      "https://example.com/digitek_dbs011_2.jpg"
-    ],
-    "features": [
-      "10W output",
-      "TWS function",
-      "Bluetooth 5.0",
-      "6 hours playtime",
-      "Portable design"
-    ],
-    "specifications": {
-      "output_power": "10W",
-      "battery": "6 hours",
-      "connectivity": "Bluetooth, AUX",
-      "weight": "350g"
-    }
+    "valid_options": [
+      { "colors": "Black", "stock": 10, "price": 2999, "discounted_price": 2599 },
+      { "colors": "Red", "stock": 10, "price": 2999, "discounted_price": 2599 },
+      { "colors": "Blue", "stock": 10, "price": 2999, "discounted_price": 2599 }
+    ]
   },
   {
     "name": "Digitek DBS-021",
@@ -1828,7 +1088,11 @@
       "battery": "8 hours",
       "connectivity": "Bluetooth, AUX",
       "weight": "420g"
-    }
+    },
+    "valid_options": [
+      { "colors": "Black", "stock": 30, "price": 2199, "discounted_price": 1899 },
+      { "colors": "Blue", "stock": 30, "price": 2199, "discounted_price": 1899 }
+    ]
   },
   {
     "name": "boAt Stone 1200",
@@ -1860,38 +1124,11 @@
       "battery": "9 hours",
       "connectivity": "Bluetooth, AUX",
       "weight": "1500g"
-    }
-  },
-  {
-    "name": "boAt Stone Grenade",
-    "price": 1999,
-    "discount_price": 1699,
-    "discount": "15%",
-    "rating": 4.3,
-    "reviews": 670,
-    "stock": 140,
-    "variant": {
-      "colors": ["Black", "Red", "Blue"]
     },
-    "category": "Speaker",
-    "brand": "Boat",
-    "description": "boAt Stone Grenade is a compact Bluetooth speaker with rugged design and 7 hours of playtime.",
-    "images": [
-      "https://example.com/boat_grenade_1.jpg",
-      "https://example.com/boat_grenade_2.jpg"
-    ],
-    "features": [
-      "Compact & rugged design",
-      "IPX6 water resistance",
-      "7 hours playtime",
-      "Bluetooth 4.2",
-      "Easy carry strap"
-    ],
-    "specifications": {
-      "output_power": "5W",
-      "battery": "7 hours",
-      "connectivity": "Bluetooth, AUX",
-      "weight": "233g"
-    }
+    "valid_options": [
+      { "colors": "Black", "stock": 40, "price": 3999, "discounted_price": 3499 },
+      { "colors": "Blue", "stock": 40, "price": 3999, "discounted_price": 3499 },
+      { "colors": "Red", "stock": 40, "price": 3999, "discounted_price": 3499 }
+    ]
   }
 ]
