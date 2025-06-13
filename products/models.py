@@ -13,6 +13,7 @@ class Product(models.Model):
     brand = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     images = models.JSONField(default=list)
+    videos = models.JSONField(default=list)  # Added videos field to store video URLs
     features = models.JSONField(default=list)
     specifications = models.JSONField(default=dict)
 
@@ -37,6 +38,7 @@ class Product(models.Model):
             'brand': self.brand,
             'description': self.description,
             'images': self.images,
+            'videos': self.videos,
             'features': self.features,
             'specifications': self.specifications
         }

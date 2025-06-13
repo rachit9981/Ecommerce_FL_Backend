@@ -331,6 +331,7 @@ def add_product(request):
     - stock (required): Stock quantity
     - description (required): Product description
     - images (required): Array of image URLs
+    - videos (optional): Array of video URLs
     - discount_price (optional): Discounted price
     - discount (optional): Discount percentage
     - specifications (optional): Object containing specification key-value pairs
@@ -392,8 +393,10 @@ def edit_product(request, product_id):
     - stock: Stock quantity
     - description: Product description
     - images: Array of image URLs
+    - videos: Array of video URLs
     - specifications: Object containing specification key-value pairs
-    - attributes: Object containing attribute key-value pairs    - features: Array of product features
+    - attributes: Object containing attribute key-value pairs    
+    - features: Array of product features
     - variant: Object containing product variants (colors, storage, etc.)
     - valid_options: Array of objects containing specific variant options with pricing and stock
     - featured: Boolean indicating if product is featured
