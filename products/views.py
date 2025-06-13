@@ -3,7 +3,7 @@ from django.http import JsonResponse
 # Remove import of Product model as we're using Firestore now
 # from .models import Product
 import csv
-# Remove Django ORM specific imports
+# Remove Django ORM specific importsxf
 # from django.db.models import Q
 from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
@@ -91,6 +91,53 @@ def fetch_products_by_category(request, category):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f"Error fetching products by category: {str(e)}"}, status=500)
 
+# Helper function to transform new product structure to old structure
+def transform_product_structure(product_data):
+    """Transform new product structure to old structure for frontend compatibility"""
+    if 'valid_options' not in product_data or not product_data['valid_options']:
+        return product_data  # Return as-is if no valid_options
+    
+    # Use the first option as the default for top-level fields
+    first_option = product_data['valid_options'][0]
+    
+    # Extract all unique storage and colors from valid_options
+    storage_options = []
+    color_options = []
+    total_stock = 0
+    
+    for option in product_data['valid_options']:
+        if 'storage' in option and option['storage'] not in storage_options:
+            storage_options.append(option['storage'])
+        if 'colors' in option and option['colors'] not in color_options:
+            color_options.append(option['colors'])
+        if 'stock' in option:
+            total_stock += option['stock']
+    
+    # Create transformed product with old structure
+    transformed_product = product_data.copy()
+    
+    # Add top-level fields from first option
+    transformed_product['price'] = first_option.get('price')
+    transformed_product['discount_price'] = first_option.get('discounted_price')
+    
+    # Calculate discount percentage if both prices exist
+    if first_option.get('price') and first_option.get('discounted_price'):
+        discount_percent = ((first_option['price'] - first_option['discounted_price']) / first_option['price']) * 100
+        transformed_product['discount'] = f"{int(discount_percent)}%"
+    else:
+        transformed_product['discount'] = None
+    
+    # Add total stock
+    transformed_product['stock'] = total_stock
+    
+    # Add variant information
+    transformed_product['variant'] = {
+        'storage': storage_options,
+        'colors': color_options
+    }
+    
+    return transformed_product
+
 # Search and filter products
 def search_and_filter_products(request):
     print("Called search_and_filter_products")
@@ -101,8 +148,6 @@ def search_and_filter_products(request):
         max_price = float(request.GET.get('max_price', 1000000))
         
         products_ref = db.collection('products')
-        products_ref = products_ref.where(filter=firestore.FieldFilter('price', '>=', min_price)).where(filter=firestore.FieldFilter('price', '<=', max_price))
-        
         product_docs = products_ref.stream()
 
         products_list = []
@@ -110,22 +155,34 @@ def search_and_filter_products(request):
             product_data = doc.to_dict()
             product_data['id'] = doc.id
             
+            # Transform to old structure first
+            transformed_product = transform_product_structure(product_data)
+            
+            # Check if product has valid price data for filtering
+            product_price = transformed_product.get('price', 0)
+            if not isinstance(product_price, (int, float)):
+                continue
+                
+            # Apply price filter
+            if product_price < min_price or product_price > max_price:
+                continue
+            
             # Apply brand filter (case-insensitive)
             if brand:
-                product_brand = product_data.get('brand', '').lower()
+                product_brand = transformed_product.get('brand', '').lower()
                 if brand.lower() not in product_brand:
                     continue
             
             # Apply text search filter
             if query:
-                name = product_data.get('name', '').lower()
-                description = product_data.get('description', '').lower()
+                name = transformed_product.get('name', '').lower()
+                description = transformed_product.get('description', '').lower()
                 query_lower = query.lower()
                 
                 if query_lower in name or query_lower in description:
-                    products_list.append(product_data)
+                    products_list.append(transformed_product)
             else:
-                products_list.append(product_data)
+                products_list.append(transformed_product)
         
         return JsonResponse({'products': products_list})
     
@@ -189,7 +246,10 @@ def fetch_all_products(request):
         for doc in products_ref:
             product_data = doc.to_dict()
             product_data['id'] = doc.id  # Add the document ID as a field
-            products_list.append(product_data)
+            
+            # Transform to old structure for frontend compatibility
+            transformed_product = transform_product_structure(product_data)
+            products_list.append(transformed_product)
             
         return JsonResponse({'products': products_list})
     except Exception as e:
