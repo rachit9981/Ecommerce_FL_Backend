@@ -346,20 +346,38 @@ def add_product(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method!'}, status=405)
     try:
-        data = json.loads(request.body)
-        # Basic validation (you might want to add more comprehensive validation)
+        data = json.loads(request.body)        # Basic validation (you might want to add more comprehensive validation)
         required_fields = ['name', 'brand', 'category', 'price', 'stock', 'description', 'images']
         for field in required_fields:
             if field not in data:
-                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)        # Initialize optional fields if not provided
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        # Initialize optional fields if not provided
         if 'attributes' not in data:
             data['attributes'] = {}
-        
-        # Validate valid_options if provided
+          # Process valid_options if provided
         if 'valid_options' in data and data['valid_options']:
             for i, option in enumerate(data['valid_options']):
                 if not isinstance(option, dict):
                     return JsonResponse({'error': f'Valid option {i+1} must be an object'}, status=400)
+                
+                # Add unique ID if not present
+                if 'id' not in option or not option['id']:
+                    import uuid
+                    option['id'] = str(uuid.uuid4())
+                
+                # Process custom keys and values
+                custom_keys = option.pop('custom_keys', [])
+                custom_values = option.pop('custom_values', [])
+                
+                # Merge custom key-value pairs into the option
+                if custom_keys and custom_values:
+                    min_length = min(len(custom_keys), len(custom_values))
+                    for j in range(min_length):
+                        key = custom_keys[j].strip()
+                        value = custom_values[j].strip()
+                        if key and value:  # Only add non-empty keys and values
+                            option[key] = value
                 
                 # Ensure numeric fields are properly typed
                 for field in ['price', 'discounted_price', 'stock']:
@@ -398,8 +416,7 @@ def edit_product(request, product_id):
     - attributes: Object containing attribute key-value pairs    
     - features: Array of product features
     - variant: Object containing product variants (colors, storage, etc.)
-    - valid_options: Array of objects containing specific variant options with pricing and stock
-    - featured: Boolean indicating if product is featured
+    - valid_options: Array of objects containing specific variant options with pricing and stock    - featured: Boolean indicating if product is featured
     """
     if request.method not in ['PUT', 'PATCH']:
         return JsonResponse({'error': 'Invalid request method! Use PUT or PATCH.'}, status=405)
@@ -408,13 +425,29 @@ def edit_product(request, product_id):
         product_ref = db.collection('products').document(product_id)
         
         if not product_ref.get().exists:
-            return JsonResponse({'error': 'Product not found!'}, status=404)
-
-        # Validate valid_options if provided
+            return JsonResponse({'error': 'Product not found!'}, status=404)        # Process valid_options if provided
         if 'valid_options' in data and data['valid_options']:
             for i, option in enumerate(data['valid_options']):
                 if not isinstance(option, dict):
                     return JsonResponse({'error': f'Valid option {i+1} must be an object'}, status=400)
+                
+                # Add unique ID if not present
+                if 'id' not in option or not option['id']:
+                    import uuid
+                    option['id'] = str(uuid.uuid4())
+                
+                # Process custom keys and values
+                custom_keys = option.pop('custom_keys', [])
+                custom_values = option.pop('custom_values', [])
+                
+                # Merge custom key-value pairs into the option
+                if custom_keys and custom_values:
+                    min_length = min(len(custom_keys), len(custom_values))
+                    for j in range(min_length):
+                        key = custom_keys[j].strip()
+                        value = custom_values[j].strip()
+                        if key and value:  # Only add non-empty keys and values
+                            option[key] = value
                 
                 # Ensure numeric fields are properly typed
                 for field in ['price', 'discounted_price', 'stock']:
