@@ -1752,10 +1752,37 @@ def update_profile(request):
             }
             return JsonResponse({'message': response_message, 'user': profile_data_to_return}, status=200)
         else:
-            return JsonResponse({'message': 'No changes provided'}, status=200)
-
+            return JsonResponse({'message': 'No changes provided'}, status=200)    
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'error': f'Error updating profile: {str(e)}'}, status=500)
+
+
+@user_required
+def check_user_review(request, product_id):
+    """Check if the current user has already reviewed a specific product"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    try:
+        user_id = request.user_id
+        
+        # Check if product exists
+        product_doc = db.collection('products').document(product_id).get()
+        if not product_doc.exists:
+            return JsonResponse({'error': 'Product not found'}, status=404)
+        
+        # Check if user has already reviewed this product
+        existing_review = db.collection('products').document(product_id).collection('reviews').where('user_id', '==', user_id).limit(1).stream()
+        has_reviewed = len(list(existing_review)) > 0
+        
+        return JsonResponse({
+            'has_reviewed': has_reviewed,
+            'product_id': product_id,
+            'user_id': user_id
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error checking review status: {str(e)}'}, status=500)
 
