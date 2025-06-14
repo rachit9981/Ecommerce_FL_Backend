@@ -553,14 +553,22 @@ def get_cart(request):
                     for option in product_data.get('valid_options', []):
                         if option.get('id') == variant_id:
                             variant_data = option
-                            break
+                            break                # Determine price based on variant or product pricing
+                price = None
+                if variant_data:
+                    price = variant_data.get('discounted_price') or variant_data.get('price')
+                if not price:
+                    price = product_data.get('discount_price') or product_data.get('discounted_price') or product_data.get('price')
+                # Fallback to 0 if no price found
+                if price is None:
+                    price = 0
                 
                 cart_item = {
                     'item_id': item_doc.id, # This is the cart item ID (product_id + variant_id)
                     'product_id': product_id,
                     'variant_id': variant_id,
                     'name': product_data.get('name'),
-                    'price': variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('discount_price') or product_data.get('price'),
+                    'price': price,
                     'image': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url'),
                     'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url'),
                     'quantity': item_data.get('quantity'),
@@ -786,6 +794,8 @@ def create_razorpay_order(request):
         currency = data.get('currency', 'INR')
         product_ids = data.get('product_ids') # List of product_ids in the cart being ordered
         address_id = data.get('address_id') # ID of the selected shipping address
+        is_single_product_order = data.get('single_product_order', False)
+        product_details = data.get('product_details') # For single product orders
 
         if not amount_in_paise or not product_ids or not address_id:
             return JsonResponse({'error': 'Amount, product_ids, and address_id are required'}, status=400)
@@ -801,23 +811,40 @@ def create_razorpay_order(request):
         address_ref = db.collection('users').document(user_id).collection('addresses').document(address_id)
         address_doc = address_ref.get()
         if not address_doc.exists:
-            return JsonResponse({'error': 'Selected address not found'}, status=400)
+            return JsonResponse({'error': 'Selected address not found'}, status=400)        
+        address_data = address_doc.to_dict()
         
-        address_data = address_doc.to_dict()        # Fetch product details to store with preliminary order
+        # Fetch product details to store with preliminary order
         preliminary_order_items = []
+        print(f"Processing {len(product_ids)} product IDs for order creation: {product_ids}")
         for product_id in product_ids:
-            # Get cart item with variant info
+            # Check if this is a cart item ID (format: product_id or product_id_variant_id)
+            # or a direct product ID (for single product orders)
             cart_item_ref = db.collection('users').document(user_id).collection('cart').document(product_id)
             cart_item_doc = cart_item_ref.get()
             
-            if not cart_item_doc.exists:
-                continue
-                
-            cart_item_data = cart_item_doc.to_dict()
-            quantity = cart_item_data.get('quantity', 1)
-            variant_id = cart_item_data.get('variant_id')
+            if cart_item_doc.exists:
+                # This is a cart-based order
+                cart_item_data = cart_item_doc.to_dict()
+                quantity = cart_item_data.get('quantity', 1)
+                variant_id = cart_item_data.get('variant_id')
+                actual_product_id = product_id.split('_')[0]  # Extract actual product_id
+                print(f"Found cart item {product_id}: quantity={quantity}, variant_id={variant_id}")
+            else:
+                # This might be a single product order - check if we have product_details
+                if is_single_product_order and product_details:
+                    quantity = product_details.get('quantity', 1)
+                    variant_id = product_details.get('variant_id')
+                    actual_product_id = product_details.get('product_id', product_id)
+                    print(f"Single product order for {product_id}: quantity={quantity}, variant_id={variant_id}")
+                else:
+                    # Fallback for other cases
+                    quantity = 1
+                    variant_id = None
+                    actual_product_id = product_id
+                    print(f"No cart item found for {product_id}, using defaults: quantity={quantity}, variant_id={variant_id}")
             
-            product_ref = db.collection('products').document(product_id.split('_')[0])  # Extract actual product_id
+            product_ref = db.collection('products').document(actual_product_id)
             product_doc = product_ref.get()
             
             if product_doc.exists:
@@ -834,8 +861,8 @@ def create_razorpay_order(request):
                 # Use variant price if available, otherwise product price
                 item_price = variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('price', 0)
                 
-                preliminary_order_items.append({
-                    'product_id': product_id.split('_')[0],  # Actual product ID
+                order_item = {
+                    'product_id': actual_product_id,
                     'variant_id': variant_id,
                     'name': product_data.get('name'),
                     'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url', ''),
@@ -844,7 +871,13 @@ def create_razorpay_order(request):
                     'quantity': quantity,
                     'price': item_price,
                     'total_item_price': item_price * quantity
-                })
+                }
+                preliminary_order_items.append(order_item)
+                print(f"Added order item: {order_item['name']} x {quantity}")
+            else:
+                print(f"Product {actual_product_id} not found in products collection")
+
+        print(f"Created preliminary order with {len(preliminary_order_items)} items")
 
         # Initialize Razorpay client
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -956,11 +989,15 @@ def verify_razorpay_payment(request):
             # Payment is successful, now update your order status and details
 
             # Fetch payment details from Razorpay for more info (optional but good)
-            payment_details = client.payment.fetch(razorpay_payment_id)
-              # Get product details and calculate final order items
+            payment_details = client.payment.fetch(razorpay_payment_id)              # Get product details and calculate final order items
             product_ids = order_data.get('product_ids', [])
+            existing_order_items = order_data.get('order_items', [])
             order_items = []
-            total_calculated_amount = 0
+            total_calculated_amount = 0            # Debug: Check if we have existing order items
+            print(f"Existing order_items count: {len(existing_order_items)}")
+            if existing_order_items:
+                print(f"Sample existing order item: {existing_order_items[0]}")
+            print(f"Product IDs to process: {product_ids}")
 
             # Start a Firestore transaction or batch write for atomicity
             batch = db.batch()
@@ -1037,9 +1074,21 @@ def verify_razorpay_payment(request):
                             print(f"Warning: Stock for product {actual_product_id} has gone negative ({new_stock}) after order {app_order_id}.")
                         
                         batch.update(product_ref, {'stock': new_stock})
-                    
-                    # Clear the item from the cart after successful order
-                    batch.delete(cart_item_ref)
+                      # Clear the item from the cart after successful order
+                    batch.delete(cart_item_ref)            # If no order_items were created (cart items might have been cleared already), 
+            # use the existing preliminary order items
+            if not order_items and existing_order_items:
+                print("No new order items created, using existing preliminary order items")
+                order_items = existing_order_items
+                # Recalculate total from existing items
+                total_calculated_amount = sum(item.get('total_item_price', 0) for item in order_items)
+            elif not order_items and not existing_order_items:
+                # This shouldn't happen, but if both are empty, log an error
+                print(f"ERROR: Both new order_items and existing_order_items are empty for order {app_order_id}")
+                print(f"Product IDs: {product_ids}")
+                print(f"Order data keys: {list(order_data.keys())}")
+                # Try to reconstruct order items from the stored preliminary data
+                order_items = existing_order_items  # Keep it empty for now to avoid errors
 
             # Verify total amount (optional but recommended)
             # Note: Razorpay amount is in paise.
@@ -1269,13 +1318,12 @@ def get_user_orders(request):
         
         orders_list = []
         for order_doc in orders_ref:
-            order_data = order_doc.to_dict()
-            
-            # Format timestamps for consistent display
+            order_data = order_doc.to_dict()            # Format timestamps for consistent display
             created_at = order_data.get('created_at')
             created_at_formatted = None
             if created_at:
                 if hasattr(created_at, 'strftime'):
+                    # Use the same format as get_order_details for consistency
                     created_at_formatted = created_at.strftime('%m/%d/%Y at %I:%M %p')
                 else:
                     # Handle string timestamps or other formats
@@ -1286,22 +1334,23 @@ def get_user_orders(request):
             preview_image = None
             if order_items and len(order_items) > 0:
                 preview_image = order_items[0].get('image_url')
-            
-            # Calculate item count properly
+              # Calculate item count properly
             item_count = 0
             if order_items:
                 # Sum up quantities of all items
                 for item in order_items:
                     item_count += item.get('quantity', 1)
             
-            # Format estimated delivery date
+            # Debug: print the item count calculation
+            print(f"Order {order_doc.id}: order_items count: {len(order_items) if order_items else 0}, calculated item_count: {item_count}")
+              # Format estimated delivery date
             estimated_delivery = order_data.get('estimated_delivery')
             estimated_delivery_formatted = None
             if estimated_delivery:
                 if hasattr(estimated_delivery, 'strftime'):
-                    estimated_delivery_formatted = estimated_delivery.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                    estimated_delivery_formatted = estimated_delivery.isoformat()
                 else:
-                    estimated_delivery_formatted = estimated_delivery
+                    estimated_delivery_formatted = str(estimated_delivery)
             
             orders_list.append({
                 'order_id': order_doc.id,
@@ -1344,14 +1393,14 @@ def get_order_details(request, order_id):
         created_at = order_data.get('created_at')
         if created_at:
             if hasattr(created_at, 'strftime'):
-                order_data['created_at_formatted'] = created_at.strftime('%m/%d/%Y at %H:%M %p')
+                order_data['created_at_formatted'] = created_at.strftime('%m/%d/%Y at %I:%M %p')
         
         # Format the payment capture timestamp
         payment_details = order_data.get('payment_details', {})
         if payment_details and payment_details.get('captured_at'):
             captured_at = payment_details.get('captured_at')
             if hasattr(captured_at, 'strftime'):
-                payment_details['captured_at_formatted'] = captured_at.strftime('%m/%d/%Y at %H:%M %p')
+                payment_details['captured_at_formatted'] = captured_at.strftime('%m/%d/%Y at %I:%M %p')
         
         # Format estimated delivery date
         estimated_delivery = order_data.get('estimated_delivery')
@@ -1365,7 +1414,7 @@ def get_order_details(request, order_id):
         for status in status_history:
             timestamp = status.get('timestamp')
             if timestamp and hasattr(timestamp, 'strftime'):
-                status['timestamp_formatted'] = timestamp.strftime('%m/%d/%Y at %H:%M %p')
+                status['timestamp_formatted'] = timestamp.strftime('%m/%d/%Y at %I:%M %p')
           # Get shipping address if not already included
         if 'address' not in order_data and 'address_id' in order_data:
             address_id = order_data.get('address_id')
