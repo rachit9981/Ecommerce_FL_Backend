@@ -4,6 +4,7 @@ from django.contrib.auth.hashers import make_password, check_password
 import jwt
 from firebase_admin.exceptions import FirebaseError
 import json
+import time
 from shop_users.utils import user_required
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore, auth as firebase_auth
@@ -279,10 +280,10 @@ def add_review(request, product_id):
     
     try:
         data = json.loads(request.body)
-        
-        # Extract required fields
+          # Extract required fields
         user_id = request.user_id
         rating = data.get('rating')
+        title = data.get('title', '')
         comment = data.get('comment', '')
         email = request.user_email
         
@@ -292,6 +293,9 @@ def add_review(request, product_id):
         
         if not rating:
             return JsonResponse({'error': 'Rating is required'}, status=400)
+        
+        if not title.strip():
+            return JsonResponse({'error': 'Review title is required'}, status=400)
         
         # Validate rating range
         try:
@@ -310,12 +314,12 @@ def add_review(request, product_id):
         existing_review = db.collection('products').document(product_id).collection('reviews').where('user_id', '==', user_id).limit(1).stream()
         if list(existing_review):
             return JsonResponse({'error': 'User has already reviewed this product'}, status=400)
-        
-        # Create review data
+          # Create review data
         review_data = {
             'user_id': user_id,
             'email': email,
             'rating': rating,
+            'title': title.strip(),
             'comment': comment,
             'created_at': datetime.now(),
             'is_verified': False,  # Default to false, admin can verify later
@@ -877,13 +881,10 @@ def create_razorpay_order(request):
             else:
                 print(f"Product {actual_product_id} not found in products collection")
 
-        print(f"Created preliminary order with {len(preliminary_order_items)} items")
-
-        # Initialize Razorpay client
+        print(f"Created preliminary order with {len(preliminary_order_items)} items")        # Initialize Razorpay client
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
         # Create Razorpay order with a receipt ID that won't exceed 40 characters
-        import time
         receipt_id = f'rcpt_{user_id[:8]}_{int(time.time())}'  # Shorter, unique receipt ID
         order_payload = {
             'amount': amount_in_paise,
@@ -1767,15 +1768,20 @@ def check_user_review(request, product_id):
     
     try:
         user_id = request.user_id
+        print(f"Checking review for user {user_id} and product {product_id}")  # Debug log
         
         # Check if product exists
         product_doc = db.collection('products').document(product_id).get()
         if not product_doc.exists:
+            print(f"Product {product_id} not found")  # Debug log
             return JsonResponse({'error': 'Product not found'}, status=404)
         
         # Check if user has already reviewed this product
         existing_review = db.collection('products').document(product_id).collection('reviews').where('user_id', '==', user_id).limit(1).stream()
-        has_reviewed = len(list(existing_review)) > 0
+        reviews_list = list(existing_review)
+        has_reviewed = len(reviews_list) > 0
+        
+        print(f"Review check result: user {user_id}, product {product_id}, has_reviewed: {has_reviewed}, found {len(reviews_list)} reviews")  # Debug log
         
         return JsonResponse({
             'has_reviewed': has_reviewed,
@@ -1784,5 +1790,6 @@ def check_user_review(request, product_id):
         }, status=200)
         
     except Exception as e:
+        print(f"Error in check_user_review: {str(e)}")  # Debug log
         return JsonResponse({'error': f'Error checking review status: {str(e)}'}, status=500)
 
