@@ -7,6 +7,7 @@ import json
 from shop_users.utils import user_required
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore, auth as firebase_auth
+from google.cloud.firestore import Query
 import razorpay
 from django.conf import settings # Import settings
 from shop_admin.utils import (
@@ -466,8 +467,9 @@ def add_to_cart(request, product_id):
 
     try:
         user_id = request.user_id
-        data = json.loads(request.body)
+        data = json.loads(request.body) if request.body else {}
         quantity = data.get('quantity', 1)
+        variant_id = data.get('variant_id', None)
 
         # Validate quantity
         try:
@@ -482,18 +484,30 @@ def add_to_cart(request, product_id):
         if not product_doc.exists:
             return JsonResponse({'error': 'Product not found'}, status=404)
 
-        cart_ref = db.collection('users').document(user_id).collection('cart').document(product_id)
+        # If variant_id is provided, validate it exists in the product's valid_options
+        if variant_id:
+            product_data = product_doc.to_dict()
+            valid_options = product_data.get('valid_options', [])
+            variant_found = any(option.get('id') == variant_id for option in valid_options)
+            if not variant_found:
+                return JsonResponse({'error': 'Invalid variant ID'}, status=400)
+
+        # Create a unique cart item identifier based on product_id and variant_id
+        cart_item_id = f"{product_id}_{variant_id}" if variant_id else product_id
+        cart_ref = db.collection('users').document(user_id).collection('cart').document(cart_item_id)
         cart_item = cart_ref.get()
 
         if cart_item.exists:
             # Update quantity if item already in cart
-            new_quantity = cart_item.to_dict().get('quantity', 0) + quantity
+            current_data = cart_item.to_dict()
+            new_quantity = current_data.get('quantity', 0) + quantity
             cart_ref.update({'quantity': new_quantity, 'updated_at': datetime.now()})
             message = 'Product quantity updated in cart'
         else:
             # Add new item to cart
             cart_data = {
                 'product_id': product_id,
+                'variant_id': variant_id,
                 'quantity': quantity,
                 'added_at': datetime.now(),
                 'updated_at': datetime.now()
@@ -501,7 +515,12 @@ def add_to_cart(request, product_id):
             cart_ref.set(cart_data)
             message = 'Product added to cart'
 
-        return JsonResponse({'message': message, 'product_id': product_id, 'quantity': cart_ref.get().to_dict().get('quantity')}, status=200)
+        return JsonResponse({
+            'message': message, 
+            'product_id': product_id, 
+            'variant_id': variant_id,
+            'quantity': cart_ref.get().to_dict().get('quantity')
+        }, status=200)
 
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
@@ -522,20 +541,36 @@ def get_cart(request):
         for item_doc in cart_items_ref:
             item_data = item_doc.to_dict()
             product_id = item_data.get('product_id')
-            
             # Fetch product details
             product_doc = db.collection('products').document(product_id).get()
             if product_doc.exists:
                 product_data = product_doc.to_dict()
-                cart.append({
-                    'item_id': item_doc.id, # This is the product_id in the cart subcollection
+                variant_id = item_data.get('variant_id')
+                variant_data = None
+                
+                # If variant_id exists, find the variant data from valid_options
+                if variant_id and product_data.get('valid_options'):
+                    for option in product_data.get('valid_options', []):
+                        if option.get('id') == variant_id:
+                            variant_data = option
+                            break
+                
+                cart_item = {
+                    'item_id': item_doc.id, # This is the cart item ID (product_id + variant_id)
                     'product_id': product_id,
+                    'variant_id': variant_id,
                     'name': product_data.get('name'),
-                    'price': product_data.get('price'),
-                    'image_url': product_data.get('image_url'), # Assuming you have an image_url field
+                    'price': variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('discount_price') or product_data.get('price'),
+                    'image': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url'),
+                    'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url'),
                     'quantity': item_data.get('quantity'),
+                    'stock': variant_data.get('stock') if variant_data else product_data.get('stock'),
+                    'category': product_data.get('category', 'Product'),
+                    'brand': product_data.get('brand', 'Unknown'),
+                    'variant': variant_data,
                     'added_at': item_data.get('added_at')
-                })
+                }
+                cart.append(cart_item)
             else:
                 # Handle case where product might have been deleted but still in cart
                 cart.append({
@@ -554,17 +589,29 @@ def get_cart(request):
 
 @user_required
 @csrf_exempt
-def remove_from_cart(request, item_id): # item_id here is the product_id in the cart
+def remove_from_cart(request, item_id): # item_id here is the cart item identifier (product_id or product_id_variant_id)
     if request.method != 'DELETE':
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
     try:
         user_id = request.user_id
         cart_item_ref = db.collection('users').document(user_id).collection('cart').document(item_id)
+        cart_item_doc = cart_item_ref.get()
         
-        if cart_item_ref.get().exists:
+        if cart_item_doc.exists:
+            cart_item_data = cart_item_doc.to_dict()
+            product_id = cart_item_data.get('product_id')
+            variant_id = cart_item_data.get('variant_id')
+            
+            # Delete the cart item
             cart_item_ref.delete()
-            return JsonResponse({'message': 'Item removed from cart successfully', 'item_id': item_id}, status=200)
+            
+            return JsonResponse({
+                'message': 'Item removed from cart successfully', 
+                'item_id': item_id,
+                'product_id': product_id,
+                'variant_id': variant_id
+            }, status=200)
         else:
             return JsonResponse({'error': 'Item not found in cart'}, status=404)
 
@@ -579,24 +626,47 @@ def add_to_wishlist(request, product_id):
 
     try:
         user_id = request.user_id
+        data = json.loads(request.body) if request.body else {}
+        variant_id = data.get('variant_id', None)
 
         # Check if product exists
         product_doc = db.collection('products').document(product_id).get()
         if not product_doc.exists:
             return JsonResponse({'error': 'Product not found'}, status=404)
 
-        wishlist_ref = db.collection('users').document(user_id).collection('wishlist').document(product_id)
+        # If variant_id is provided, validate it exists in the product's valid_options
+        if variant_id:
+            product_data = product_doc.to_dict()
+            valid_options = product_data.get('valid_options', [])
+            variant_found = any(option.get('id') == variant_id for option in valid_options)
+            if not variant_found:
+                return JsonResponse({'error': 'Invalid variant ID'}, status=400)
+
+        # Create a unique wishlist item identifier based on product_id and variant_id
+        wishlist_item_id = f"{product_id}_{variant_id}" if variant_id else product_id
+        wishlist_ref = db.collection('users').document(user_id).collection('wishlist').document(wishlist_item_id)
         
         if wishlist_ref.get().exists:
-            return JsonResponse({'message': 'Product already in wishlist', 'product_id': product_id}, status=200)
+            return JsonResponse({
+                'message': 'Product already in wishlist', 
+                'product_id': product_id, 
+                'variant_id': variant_id
+            }, status=200)
         else:
             wishlist_data = {
                 'product_id': product_id,
+                'variant_id': variant_id,
                 'added_at': datetime.now()
             }
             wishlist_ref.set(wishlist_data)
-            return JsonResponse({'message': 'Product added to wishlist', 'product_id': product_id}, status=201)
+            return JsonResponse({
+                'message': 'Product added to wishlist', 
+                'product_id': product_id, 
+                'variant_id': variant_id
+            }, status=201)
 
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'error': f'Error adding to wishlist: {str(e)}'}, status=500)
 
@@ -619,14 +689,45 @@ def get_wishlist(request):
             product_doc = db.collection('products').document(product_id).get()
             if product_doc.exists:
                 product_data = product_doc.to_dict()
-                wishlist.append({
-                    'item_id': item_doc.id, # This is the product_id in the wishlist subcollection
+                variant_id = item_data.get('variant_id')
+                variant_data = None
+                
+                # If variant_id exists, find the variant data from valid_options
+                if variant_id and product_data.get('valid_options'):
+                    for option in product_data.get('valid_options', []):
+                        if option.get('id') == variant_id:
+                            variant_data = option
+                            break
+                
+                # Get the first image from images array or fallback to image_url
+                image_url = None
+                if product_data.get('images') and len(product_data.get('images')) > 0:
+                    image_url = product_data.get('images')[0]
+                else:
+                    image_url = product_data.get('image_url', '')
+                
+                # Determine price based on variant or product pricing
+                price = None
+                if variant_data:
+                    price = variant_data.get('discounted_price') or variant_data.get('price')
+                if not price:
+                    price = product_data.get('discount_price') or product_data.get('discounted_price') or product_data.get('price')
+                
+                wishlist_item = {
+                    'item_id': item_doc.id,  # This is the wishlist item ID (product_id + variant_id)
                     'product_id': product_id,
-                    'name': product_data.get('name'),
-                    'price': product_data.get('price'),
-                    'image_url': product_data.get('image_url'), # Assuming image_url field
+                    'variant_id': variant_id,
+                    'name': product_data.get('name', 'Unknown Product'),
+                    'price': price,
+                    'image': image_url,
+                    'image_url': image_url,
+                    'stock': variant_data.get('stock') if variant_data else product_data.get('stock', 0),
+                    'category': product_data.get('category', 'Product'),
+                    'brand': product_data.get('brand', 'Unknown'),
+                    'variant': variant_data,
                     'added_at': item_data.get('added_at')
-                })
+                }
+                wishlist.append(wishlist_item)
             else:
                 wishlist.append({
                     'item_id': item_doc.id,
@@ -635,7 +736,6 @@ def get_wishlist(request):
                     'error': 'Product details could not be fetched.'
                 })
 
-
         return JsonResponse({'wishlist': wishlist}, status=200)
 
     except Exception as e:
@@ -643,17 +743,29 @@ def get_wishlist(request):
 
 @user_required
 @csrf_exempt
-def remove_from_wishlist(request, item_id): # item_id here is the product_id in the wishlist
+def remove_from_wishlist(request, item_id): # item_id here is the wishlist item identifier (product_id or product_id_variant_id)
     if request.method != 'DELETE':
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
     try:
         user_id = request.user_id
         wishlist_item_ref = db.collection('users').document(user_id).collection('wishlist').document(item_id)
+        wishlist_item_doc = wishlist_item_ref.get()
         
-        if wishlist_item_ref.get().exists:
+        if wishlist_item_doc.exists:
+            wishlist_item_data = wishlist_item_doc.to_dict()
+            product_id = wishlist_item_data.get('product_id')
+            variant_id = wishlist_item_data.get('variant_id')
+            
+            # Delete the wishlist item
             wishlist_item_ref.delete()
-            return JsonResponse({'message': 'Item removed from wishlist successfully', 'item_id': item_id}, status=200)
+            
+            return JsonResponse({
+                'message': 'Item removed from wishlist successfully', 
+                'item_id': item_id,
+                'product_id': product_id,
+                'variant_id': variant_id
+            }, status=200)
         else:
             return JsonResponse({'error': 'Item not found in wishlist'}, status=404)
 
@@ -691,30 +803,44 @@ def create_razorpay_order(request):
         if not address_doc.exists:
             return JsonResponse({'error': 'Selected address not found'}, status=400)
         
-        address_data = address_doc.to_dict()
-
-        # Fetch product details to store with preliminary order
+        address_data = address_doc.to_dict()        # Fetch product details to store with preliminary order
         preliminary_order_items = []
         for product_id in product_ids:
-            product_ref = db.collection('products').document(product_id)
+            # Get cart item with variant info
+            cart_item_ref = db.collection('users').document(user_id).collection('cart').document(product_id)
+            cart_item_doc = cart_item_ref.get()
+            
+            if not cart_item_doc.exists:
+                continue
+                
+            cart_item_data = cart_item_doc.to_dict()
+            quantity = cart_item_data.get('quantity', 1)
+            variant_id = cart_item_data.get('variant_id')
+            
+            product_ref = db.collection('products').document(product_id.split('_')[0])  # Extract actual product_id
             product_doc = product_ref.get()
+            
             if product_doc.exists:
                 product_data = product_doc.to_dict()
+                variant_data = None
                 
-                # Get quantity from user's cart for this product
-                cart_item_ref = db.collection('users').document(user_id).collection('cart').document(product_id)
-                cart_item_doc = cart_item_ref.get()
-                quantity = 1  # Default quantity
-                if cart_item_doc.exists:
-                    quantity = cart_item_doc.to_dict().get('quantity', 1)
+                # Find variant data if variant_id exists
+                if variant_id and product_data.get('valid_options'):
+                    for option in product_data.get('valid_options', []):
+                        if option.get('id') == variant_id:
+                            variant_data = option
+                            break
                 
-                item_price = product_data.get('price', 0)
+                # Use variant price if available, otherwise product price
+                item_price = variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('price', 0)
+                
                 preliminary_order_items.append({
-                    'product_id': product_id,
+                    'product_id': product_id.split('_')[0],  # Actual product ID
+                    'variant_id': variant_id,
                     'name': product_data.get('name'),
-                    'image_url': product_data.get('image_url', ''),
+                    'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url', ''),
                     'brand': product_data.get('brand', ''),
-                    'color': product_data.get('color', ''),
+                    'variant_details': variant_data,
                     'quantity': quantity,
                     'price': item_price,
                     'total_item_price': item_price * quantity
@@ -831,8 +957,7 @@ def verify_razorpay_payment(request):
 
             # Fetch payment details from Razorpay for more info (optional but good)
             payment_details = client.payment.fetch(razorpay_payment_id)
-            
-            # Get product details and calculate final order items
+              # Get product details and calculate final order items
             product_ids = order_data.get('product_ids', [])
             order_items = []
             total_calculated_amount = 0
@@ -840,48 +965,81 @@ def verify_razorpay_payment(request):
             # Start a Firestore transaction or batch write for atomicity
             batch = db.batch()
 
-            for product_id in product_ids:
-                product_ref = db.collection('products').document(product_id)
+            for cart_item_id in product_ids:
+                # Extract actual product_id from cart_item_id (format: product_id or product_id_variant_id)
+                actual_product_id = cart_item_id.split('_')[0]
+                
+                # Get cart item data to get variant_id and quantity
+                cart_item_ref = db.collection('users').document(user_id).collection('cart').document(cart_item_id)
+                cart_item_doc = cart_item_ref.get()
+                
+                if not cart_item_doc.exists:
+                    continue
+                    
+                cart_item_data = cart_item_doc.to_dict()
+                quantity = cart_item_data.get('quantity', 1)
+                variant_id = cart_item_data.get('variant_id')
+                
+                # Get product data
+                product_ref = db.collection('products').document(actual_product_id)
                 product_doc = product_ref.get()
+                
                 if product_doc.exists:
                     product_data = product_doc.to_dict()
+                    variant_data = None
                     
-                    # Get quantity from user's cart for this product
-                    cart_item_ref = db.collection('users').document(user_id).collection('cart').document(product_id)
-                    cart_item_doc = cart_item_ref.get()
-                    quantity = 1 # Default quantity
-                    if cart_item_doc.exists:
-                        quantity = cart_item_doc.to_dict().get('quantity', 1)
+                    # Find variant data if variant_id exists
+                    if variant_id and product_data.get('valid_options'):
+                        valid_options = product_data.get('valid_options', [])
+                        for i, option in enumerate(valid_options):
+                            if option.get('id') == variant_id:
+                                variant_data = option
+                                variant_index = i
+                                break
                     
-                    item_price = product_data.get('price', 0)
+                    # Use variant price if available, otherwise product price
+                    item_price = variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('price', 0)
+                    
                     order_items.append({
-                        'product_id': product_id,
+                        'product_id': actual_product_id,
+                        'variant_id': variant_id,
                         'name': product_data.get('name'),
                         'quantity': quantity,
-                        'price_at_purchase': item_price, # Price at the time of order
+                        'price_at_purchase': item_price,
                         'total_item_price': item_price * quantity,
-                        'image_url': product_data.get('image_url', ''),  # Add image URL
-                        'brand': product_data.get('brand', ''),  # Add brand information
-                        'color': product_data.get('color', ''),  # Add color information
-                        'model': product_data.get('model', '')  # Add model information
+                        'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url', ''),
+                        'brand': product_data.get('brand', ''),
+                        'variant_details': variant_data
                     })
                     total_calculated_amount += item_price * quantity
 
-                    # Decrease product stock
-                    current_stock = product_data.get('stock', 0)
-                    new_stock = current_stock - quantity
-                    if new_stock < 0:
-                        # Log a warning or handle insufficient stock post-payment as per business logic
-                        # For example, you might allow backorders or flag the order for manual review.
-                        print(f"Warning: Stock for product {product_id} has gone negative ({new_stock}) after order {app_order_id}.")
-                        # Potentially set new_stock to 0 if negative stock is not allowed and it's a critical issue.
-                        # new_stock = 0 # Uncomment if you want to prevent negative stock values explicitly here
-                    
-                    batch.update(product_ref, {'stock': new_stock})
+                    # Update stock - either variant stock or product stock
+                    if variant_data:
+                        # Update variant stock
+                        current_variant_stock = variant_data.get('stock', 0)
+                        new_variant_stock = current_variant_stock - quantity
+                        if new_variant_stock < 0:
+                            print(f"Warning: Variant stock for product {actual_product_id}, variant {variant_id} has gone negative ({new_variant_stock}) after order {app_order_id}.")
+                        
+                        # Update the variant stock in valid_options
+                        updated_valid_options = product_data.get('valid_options', [])
+                        for i, option in enumerate(updated_valid_options):
+                            if option.get('id') == variant_id:
+                                updated_valid_options[i]['stock'] = new_variant_stock
+                                break
+                        
+                        batch.update(product_ref, {'valid_options': updated_valid_options})
+                    else:
+                        # Update product stock
+                        current_stock = product_data.get('stock', 0)
+                        new_stock = current_stock - quantity
+                        if new_stock < 0:
+                            print(f"Warning: Stock for product {actual_product_id} has gone negative ({new_stock}) after order {app_order_id}.")
+                        
+                        batch.update(product_ref, {'stock': new_stock})
                     
                     # Clear the item from the cart after successful order
-                    if cart_item_doc.exists:
-                        batch.delete(cart_item_ref)
+                    batch.delete(cart_item_ref)
 
             # Verify total amount (optional but recommended)
             # Note: Razorpay amount is in paise.
@@ -930,9 +1088,48 @@ def verify_razorpay_payment(request):
                 'updated_at': datetime.now()
             }
             batch.update(order_doc_ref, final_order_update)
-            
-            # Commit the batch
+              # Commit the batch
             batch.commit()
+
+            # Get updated cart after clearing items
+            try:
+                updated_cart_items_ref = db.collection('users').document(user_id).collection('cart').stream()
+                updated_cart = []
+                for item_doc in updated_cart_items_ref:
+                    item_data = item_doc.to_dict()
+                    product_id = item_data.get('product_id')
+                    # Fetch product details
+                    product_doc = db.collection('products').document(product_id).get()
+                    if product_doc.exists:
+                        product_data = product_doc.to_dict()
+                        variant_id = item_data.get('variant_id')
+                        variant_data = None
+                        
+                        # If variant_id exists, find the variant data from valid_options
+                        if variant_id and product_data.get('valid_options'):
+                            for option in product_data.get('valid_options', []):
+                                if option.get('id') == variant_id:
+                                    variant_data = option
+                                    break
+                        
+                        cart_item = {
+                            'item_id': item_doc.id,
+                            'product_id': product_id,
+                            'variant_id': variant_id,
+                            'name': product_data.get('name'),
+                            'price': variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('discount_price') or product_data.get('price'),
+                            'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url'),
+                            'quantity': item_data.get('quantity'),
+                            'stock': variant_data.get('stock') if variant_data else product_data.get('stock'),
+                            'category': product_data.get('category', 'Product'),
+                            'brand': product_data.get('brand', 'Unknown'),
+                            'variant': variant_data,
+                            'added_at': item_data.get('added_at')
+                        }
+                        updated_cart.append(cart_item)
+            except Exception as cart_error:
+                print(f"Error fetching updated cart: {str(cart_error)}")
+                updated_cart = []
 
             # Generate invoice after successful payment and order update
             try:
@@ -980,7 +1177,9 @@ def verify_razorpay_payment(request):
                 'message': 'Payment verified successfully and order placed.',
                 'app_order_id': app_order_id,
                 'razorpay_payment_id': razorpay_payment_id,
-                'order_status': final_order_update['status']
+                'order_status': final_order_update['status'],
+                'updated_cart': updated_cart,
+                'cart_items_removed': len(product_ids)
             }, status=200)
         else:
             # Payment verification failed
@@ -1066,8 +1265,8 @@ def get_user_orders(request):
 
     try:
         user_id = request.user_id
-        orders_ref = db.collection('users').document(user_id).collection('orders').order_by('created_at', direction=firestore.Query.DESCENDING).stream()
-
+        orders_ref = db.collection('users').document(user_id).collection('orders').order_by('created_at', direction=Query.DESCENDING).stream()
+        
         orders_list = []
         for order_doc in orders_ref:
             order_data = order_doc.to_dict()
@@ -1076,24 +1275,44 @@ def get_user_orders(request):
             created_at = order_data.get('created_at')
             created_at_formatted = None
             if created_at:
-                created_at_formatted = created_at.strftime('%m/%d/%Y at %H:%M %p') if hasattr(created_at, 'strftime') else None
+                if hasattr(created_at, 'strftime'):
+                    created_at_formatted = created_at.strftime('%m/%d/%Y at %I:%M %p')
+                else:
+                    # Handle string timestamps or other formats
+                    created_at_formatted = str(created_at)
                 
             # Get first item image for preview
             order_items = order_data.get('order_items', [])
             preview_image = None
-            if order_items:
+            if order_items and len(order_items) > 0:
                 preview_image = order_items[0].get('image_url')
+            
+            # Calculate item count properly
+            item_count = 0
+            if order_items:
+                # Sum up quantities of all items
+                for item in order_items:
+                    item_count += item.get('quantity', 1)
+            
+            # Format estimated delivery date
+            estimated_delivery = order_data.get('estimated_delivery')
+            estimated_delivery_formatted = None
+            if estimated_delivery:
+                if hasattr(estimated_delivery, 'strftime'):
+                    estimated_delivery_formatted = estimated_delivery.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                else:
+                    estimated_delivery_formatted = estimated_delivery
             
             orders_list.append({
                 'order_id': order_doc.id,
                 'status': order_data.get('status'),
                 'total_amount': order_data.get('total_amount'),
                 'currency': order_data.get('currency', 'INR'),
-                'created_at': created_at_formatted or order_data.get('created_at'),
-                'item_count': len(order_items),
+                'created_at': created_at_formatted,
+                'item_count': item_count,
                 'preview_image': preview_image,
                 'tracking_info': order_data.get('tracking_info', {}),
-                'estimated_delivery': order_data.get('estimated_delivery')
+                'estimated_delivery': estimated_delivery_formatted
             })
 
         return JsonResponse({'orders': orders_list}, status=200)
@@ -1278,7 +1497,7 @@ def get_addresses(request):
         return JsonResponse({'error': 'Invalid request method'}, status=405)
     try:
         user_id = request.user_id
-        addresses_stream = db.collection('users').document(user_id).collection('addresses').order_by('is_default', direction=firestore.Query.DESCENDING).stream()
+        addresses_stream = db.collection('users').document(user_id).collection('addresses').order_by('is_default', direction=Query.DESCENDING).stream()
         
         addresses_list = []
         for addr_doc in addresses_stream:

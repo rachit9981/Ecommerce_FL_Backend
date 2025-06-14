@@ -1174,3 +1174,82 @@ def upload_category_image(request):
             'error': 'Internal server error during image upload',
             'code': 'INTERNAL_ERROR'
         }, status=500)
+
+@csrf_exempt
+@admin_required
+def update_variant_stock(request, product_id):
+    """Update stock for specific product variants
+    
+    Accepts the following in the request body:
+    - variant_updates: Array of objects with variant_id and new_stock
+    
+    Example:
+    {
+        "variant_updates": [
+            {"variant_id": "variant-123", "new_stock": 50},
+            {"variant_id": "variant-456", "new_stock": 25}
+        ]
+    }
+    """
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'Invalid request method! Use PATCH.'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        variant_updates = data.get('variant_updates', [])
+        
+        if not variant_updates:
+            return JsonResponse({'error': 'No variant updates provided'}, status=400)
+        
+        # Get the product document
+        product_ref = db.collection('products').document(product_id)
+        product_doc = product_ref.get()
+        
+        if not product_doc.exists:
+            return JsonResponse({'error': 'Product not found!'}, status=404)
+        
+        product_data = product_doc.to_dict()
+        valid_options = product_data.get('valid_options', [])
+        
+        if not valid_options:
+            return JsonResponse({'error': 'Product has no variants'}, status=400)
+        
+        # Update stock for specified variants
+        updated = False
+        for update in variant_updates:
+            variant_id = update.get('variant_id')
+            new_stock = update.get('new_stock')
+            
+            if not variant_id or new_stock is None:
+                continue
+                
+            try:
+                new_stock = int(new_stock)
+                if new_stock < 0:
+                    return JsonResponse({'error': f'Stock cannot be negative for variant {variant_id}'}, status=400)
+            except (ValueError, TypeError):
+                return JsonResponse({'error': f'Invalid stock value for variant {variant_id}'}, status=400)
+            
+            # Find and update the variant
+            for i, option in enumerate(valid_options):
+                if option.get('id') == variant_id:
+                    valid_options[i]['stock'] = new_stock
+                    updated = True
+                    break
+        
+        if not updated:
+            return JsonResponse({'error': 'No matching variants found to update'}, status=400)
+        
+        # Update the product with new variant stock
+        product_ref.update({'valid_options': valid_options})
+        
+        return JsonResponse({
+            'message': 'Variant stock updated successfully!',
+            'product_id': product_id,
+            'updated_variants': len([u for u in variant_updates if u.get('variant_id') and u.get('new_stock') is not None])
+        }, status=200)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
