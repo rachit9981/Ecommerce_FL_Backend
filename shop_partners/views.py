@@ -134,7 +134,7 @@ def get_all_partners(request):
 
 @csrf_exempt
 @partner_required
-def get_assigned_orders(request): # Renamed from delivery_assignment_list
+def get_assigned_orders(request):
     """Fetch all orders currently assigned to the logged-in delivery partner that are not yet in a final state."""
     partner_id = request.partner_id 
 
@@ -165,6 +165,14 @@ def get_assigned_orders(request): # Renamed from delivery_assignment_list
                 if delivery_status in final_delivery_statuses or order_status in final_order_statuses:
                     continue
                 
+                # Calculate total item count from order_items
+                order_items = order_data.get('order_items', [])
+                total_item_count = 0
+                if order_items:
+                    for item in order_items:
+                        item_quantity = item.get('quantity', 1)
+                        total_item_count += item_quantity
+                
                 # Add any other relevant details you want to show in the list
                 orders_list.append({
                     'order_id': order_doc.id,
@@ -175,6 +183,8 @@ def get_assigned_orders(request): # Renamed from delivery_assignment_list
                     'assigned_partner_name': order_data.get('assigned_partner_name'),
                     'total_amount': order_data.get('total_amount'),
                     'currency': order_data.get('currency', 'INR'),
+                    'item_count': total_item_count,
+                    'order_items': order_items,
                     'customer_name': order_data.get('address', {}).get('name') or order_data.get('shipping_address', {}).get('name'),
                     'customer_phone': order_data.get('address', {}).get('phone_number') or order_data.get('shipping_address', {}).get('phone_number'),
                     'delivery_address': {
@@ -379,3 +389,87 @@ def delivery_history(request):
         return JsonResponse({'delivery_history': history_list})
     except Exception as e:
         return JsonResponse({'error': f'An error occurred while fetching delivery history: {str(e)}'}, status=500)
+
+@csrf_exempt
+@partner_required
+def get_partner_profile(request):
+    """Get the profile details of the logged-in delivery partner."""
+    if request.method == 'GET':
+        partner_id = request.partner_id
+        try:
+            partner_ref = db.collection(PARTNERS_COLLECTION).document(partner_id)
+            partner_doc = partner_ref.get()
+            
+            if not partner_doc.exists:
+                return JsonResponse({'error': 'Partner not found'}, status=404)
+            
+            partner_data = partner_doc.to_dict()
+            # Remove sensitive data before sending
+            partner_data.pop('password', None)
+            partner_data['partner_id'] = partner_id
+            
+            return JsonResponse({'partner': partner_data})
+        except Exception as e:
+            return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+@partner_required
+def update_partner_profile(request):
+    """Update the profile details of the logged-in delivery partner."""
+    if request.method == 'PATCH':
+        partner_id = request.partner_id
+        try:
+            data = json.loads(request.body)
+            
+            # Get current partner data
+            partner_ref = db.collection(PARTNERS_COLLECTION).document(partner_id)
+            partner_doc = partner_ref.get()
+            
+            if not partner_doc.exists:
+                return JsonResponse({'error': 'Partner not found'}, status=404)
+            
+            current_data = partner_doc.to_dict()
+            
+            # Prepare update data
+            update_data = {}
+            
+            # Update basic profile fields
+            if 'name' in data:
+                update_data['name'] = data['name']
+            if 'phone' in data:
+                update_data['phone'] = data['phone']
+            if 'address' in data:
+                update_data['address'] = data['address']
+            if 'vehicle_type' in data:
+                update_data['vehicle_type'] = data['vehicle_type']
+            if 'vehicle_number' in data:
+                update_data['vehicle_number'] = data['vehicle_number']
+            
+            # Handle password change if provided
+            if 'current_password' in data and 'new_password' in data:
+                current_password = data.get('current_password')
+                new_password = data.get('new_password')
+                
+                # Verify current password (in production, use proper password hashing)
+                if current_data.get('password') != current_password:
+                    return JsonResponse({'error': 'Current password is incorrect'}, status=400)
+                
+                if len(new_password) < 6:
+                    return JsonResponse({'error': 'New password must be at least 6 characters'}, status=400)
+                
+                update_data['password'] = new_password  # In production, hash this
+            
+            # Add update timestamp
+            update_data['updated_at'] = datetime.now()
+            
+            # Update the document
+            partner_ref.update(update_data)
+            
+            return JsonResponse({'message': 'Profile updated successfully'})
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
+    return JsonResponse({'error': 'Invalid request method. Use PATCH.'}, status=405)
