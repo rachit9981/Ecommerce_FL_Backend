@@ -5,6 +5,7 @@ import jwt
 from firebase_admin.exceptions import FirebaseError
 import json
 import time
+import logging
 from shop_users.utils import user_required
 from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore, auth as firebase_auth
@@ -14,13 +15,19 @@ from django.conf import settings # Import settings
 from shop_admin.utils import (
     generate_invoice_pdf, 
     upload_pdf_to_cloudinary_util, 
+    upload_pdf_to_cloudinary_base64,
+    save_pdf_to_disk_debug,
     create_invoice_data, 
-    save_invoice_to_firestore
+    save_invoice_to_firestore,
+    PDFGenerationError
 )
 from datetime import datetime
 
 # Get Firebase client
 db = firestore.client()
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def signup(request):
@@ -1033,8 +1040,7 @@ def verify_razorpay_payment(request):
                             if option.get('id') == variant_id:
                                 variant_data = option
                                 variant_index = i
-                                break
-                    
+                                break                    
                     # Use variant price if available, otherwise product price
                     item_price = variant_data.get('discounted_price') or variant_data.get('price') if variant_data else product_data.get('price', 0)
                     
@@ -1042,11 +1048,12 @@ def verify_razorpay_payment(request):
                         'product_id': actual_product_id,
                         'variant_id': variant_id,
                         'name': product_data.get('name'),
+                        'brand': product_data.get('brand', ''),
+                        'model': variant_data.get('name', '') if variant_data else product_data.get('model', ''),
                         'quantity': quantity,
                         'price_at_purchase': item_price,
                         'total_item_price': item_price * quantity,
                         'image_url': product_data.get('images', [product_data.get('image_url', '')])[0] if product_data.get('images') else product_data.get('image_url', ''),
-                        'brand': product_data.get('brand', ''),
                         'variant_details': variant_data
                     })
                     total_calculated_amount += item_price * quantity
@@ -1095,11 +1102,8 @@ def verify_razorpay_payment(request):
             # Note: Razorpay amount is in paise.
             if order_data.get('total_amount') != (payment_details.get('amount') / 100):
                 # Log discrepancy, but might proceed if signature is verified
-                print(f"Warning: Amount mismatch. Stored: {order_data.get('total_amount')}, Razorpay: {payment_details.get('amount') / 100}")
-
-            # Generate shipping details with estimated dates
+                print(f"Warning: Amount mismatch. Stored: {order_data.get('total_amount')}, Razorpay: {payment_details.get('amount') / 100}")            # Generate shipping details with estimated dates
             import random
-            from datetime import datetime # Keep datetime for now()
 
             # Update tracking info and status history
             tracking_info = order_data.get('tracking_info', {})
@@ -1179,49 +1183,89 @@ def verify_razorpay_payment(request):
                         updated_cart.append(cart_item)
             except Exception as cart_error:
                 print(f"Error fetching updated cart: {str(cart_error)}")
-                updated_cart = []
-
-            # Generate invoice after successful payment and order update
+                updated_cart = []            # Generate invoice after successful payment and order update
             try:
+                logger.info(f"Starting invoice generation for order {app_order_id}")
+                
                 # Get user data for invoice
                 user_doc = db.collection('users').document(user_id).get()
                 user_data = user_doc.to_dict() if user_doc.exists else {}
                 
-                # Create invoice data
-                invoice_data = create_invoice_data(order_data, user_data, order_items)
+                # Prepare complete order data for invoice creation
+                complete_order_data = {
+                    **order_data,
+                    'order_id': app_order_id,
+                    'total_amount': total_calculated_amount,
+                    'shipping_cost': order_data.get('shipping_cost', 0)
+                }
+                  # Create invoice data
+                invoice_data = create_invoice_data(complete_order_data, user_data, order_items)
                 
                 if invoice_data:
+                    logger.info(f"Invoice data created successfully for order {app_order_id}")
+                    
                     # Generate PDF
                     pdf_buffer = generate_invoice_pdf(invoice_data)
                     
                     if pdf_buffer:
-                        # Upload PDF to Cloudinary
-                        pdf_filename = f"invoice_{invoice_data['invoice_id']}"
-                        pdf_url = upload_pdf_to_cloudinary_util(pdf_buffer, pdf_filename)
+                        logger.info(f"PDF generated successfully for order {app_order_id}")
                         
-                        if pdf_url:
-                            # Save invoice to Firestore
-                            invoice_doc_id = save_invoice_to_firestore(db, user_id, invoice_data, pdf_url)
+                        # Save PDF to disk for debugging (optional - can be removed in production)
+                        debug_filename = f"debug_invoice_{invoice_data['invoice_id']}.pdf"
+                        debug_path = save_pdf_to_disk_debug(pdf_buffer, debug_filename)
+                        if debug_path:
+                            logger.info(f"Debug PDF saved to: {debug_path}")
+                        
+                        # Validate PDF buffer before upload
+                        pdf_buffer.seek(0)
+                        pdf_bytes = pdf_buffer.getvalue()
+                        logger.info(f"PDF buffer size: {len(pdf_bytes)} bytes")
+                        
+                        if len(pdf_bytes) > 100 and pdf_bytes.startswith(b'%PDF'):
+                            # Upload PDF to Cloudinary
+                            pdf_filename = f"invoice_{invoice_data['invoice_id']}"
+                            pdf_url = upload_pdf_to_cloudinary_util(pdf_buffer, pdf_filename)
                             
-                            if invoice_doc_id:
-                                # Update order with invoice reference
-                                order_doc_ref.update({
-                                    'invoice_id': invoice_data['invoice_id'],
-                                    'invoice_pdf_url': pdf_url
-                                })
-                                print(f"Invoice generated successfully: {invoice_data['invoice_id']}")
+                            # Try alternative upload method if first method fails
+                            if not pdf_url:
+                                logger.warning("Primary upload method failed, trying base64 method")
+                                pdf_url = upload_pdf_to_cloudinary_base64(pdf_buffer, pdf_filename)
+                            
+                            if pdf_url:
+                                logger.info(f"PDF uploaded successfully to Cloudinary for order {app_order_id}")
+                                
+                                # Save invoice to Firestore
+                                invoice_doc_id = save_invoice_to_firestore(db, user_id, invoice_data, pdf_url)
+                                
+                                if invoice_doc_id:
+                                    # Update order with invoice reference
+                                    order_doc_ref.update({
+                                        'invoice_id': invoice_data['invoice_id'],
+                                        'invoice_pdf_url': pdf_url
+                                    })
+                                    logger.info(f"Invoice generated and saved successfully: {invoice_data['invoice_id']}")
+                                else:
+                                    logger.error("Failed to save invoice to Firestore")
                             else:
-                                print("Failed to save invoice to Firestore")
+                                logger.error("Failed to upload invoice PDF to Cloudinary with all methods")
                         else:
-                            print("Failed to upload invoice PDF to Cloudinary")
+                            logger.error(f"Invalid PDF buffer - Size: {len(pdf_bytes)}, Starts with PDF: {pdf_bytes.startswith(b'%PDF') if pdf_bytes else False}")
                     else:
-                        print("Failed to generate invoice PDF")
+                        logger.error("Failed to generate invoice PDF")
                 else:
-                    print("Failed to create invoice data")
+                    logger.error("Failed to create invoice data")
                     
+            except PDFGenerationError as pdf_error:
+                # Specific PDF generation error - don't fail the payment
+                logger.error(f"PDF generation error: {str(pdf_error)}")
+                print("Payment verification successful, but invoice generation failed")
             except Exception as invoice_error:
                 # Log error but don't fail the payment verification
+                logger.error(f"Error generating invoice: {str(invoice_error)}")
+                import traceback
+                logger.error(f"Invoice error traceback: {traceback.format_exc()}")
                 print(f"Error generating invoice: {str(invoice_error)}")
+                print(f"Invoice error traceback: {traceback.format_exc()}")
 
             return JsonResponse({
                 'message': 'Payment verified successfully and order placed.',
@@ -1792,4 +1836,6 @@ def check_user_review(request, product_id):
     except Exception as e:
         print(f"Error in check_user_review: {str(e)}")  # Debug log
         return JsonResponse({'error': f'Error checking review status: {str(e)}'}, status=500)
+
+
 

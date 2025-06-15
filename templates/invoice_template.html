@@ -4,26 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Invoice</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
     <style>
-      :root {
-        --primary-color: #4361ee;
-        --secondary-color: #3f37c9;
-        --accent-color: #4895ef;
-        --success-color: #4cc9f0;
-        --text-primary: #333333;
-        --text-secondary: #555555;
-        --text-light: #777777;
-        --bg-light: #f8f9fa;
-        --bg-white: #ffffff;
-        --border-color: #e9ecef;
-      }
-
+      /* wkhtmltopdf compatible CSS - avoid CSS variables and modern features */
       * {
         box-sizing: border-box;
         margin: 0;
@@ -31,104 +13,149 @@
       }
 
       body {
-        font-family: "Inter", sans-serif;
+        font-family: Arial, Helvetica, sans-serif;
         margin: 0;
-        padding: 20px;
-        background-color: var(--bg-light);
-        color: var(--text-primary);
-        line-height: 1.6;
+        padding: 10mm;
+        background-color: #ffffff;
+        color: #333333;
+        line-height: 1.4;
+        font-size: 12px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
 
       .container {
-        max-width: 800px;
-        margin: 0 auto;
-        background-color: var(--bg-white);
-        padding: 40px;
-        border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        background-color: #ffffff;
+        padding: 0;
+        border: none;
+        min-height: 250mm;
+      }
+      .header {
+        width: 100%;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+        page-break-inside: avoid;
       }
 
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 30px;
-        margin-bottom: 30px;
+      .header-content {
+        width: 100%;
+        display: table;
+        table-layout: fixed;
+      }
+
+      .header-left {
+        display: table-cell;
+        vertical-align: middle;
+        width: 60%;
+        padding-right: 20px;
+      }
+
+      .header-right {
+        display: table-cell;
+        vertical-align: middle;
+        text-align: right;
+        width: 40%;
       }
 
       .header img {
-        max-width: 180px;
-        max-height: 80px;
-        object-fit: contain;
+        max-width: 150px;
+        max-height: 60px;
+        display: block;
       }
 
       .header h1 {
-        font-size: 2.2em;
-        font-weight: 700;
-        color: var(--primary-color);
+        font-size: 28px;
+        font-weight: bold;
+        color: #4361ee;
         margin: 0;
-        letter-spacing: -0.5px;
+        letter-spacing: 2px;
       }
 
       .invoice-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 30px;
-        margin-bottom: 40px;
+        width: 100%;
+        margin-bottom: 25px;
+        page-break-inside: avoid;
       }
 
-      .company-details,
-      .invoice-details {
+      .grid-row {
+        width: 100%;
+        display: table;
+        table-layout: fixed;
+        margin-bottom: 15px;
+      }
+
+      .grid-left,
+      .grid-right {
+        display: table-cell;
+        vertical-align: top;
+        width: 50%;
+        padding: 0 10px;
+      }
+
+      .grid-left {
+        padding-left: 0;
+      }
+
+      .grid-right {
+        padding-right: 0;
+      }
+
+      .section-box {
         margin-bottom: 20px;
       }
 
-      .company-details h3,
-      .invoice-details h3 {
+      .section-box h3 {
         font-size: 1.1em;
-        font-weight: 600;
+        font-weight: bold;
         margin-bottom: 10px;
-        color: var(--secondary-color);
+        color: #3f37c9;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
-      .company-details p,
-      .invoice-details p {
+      .section-box p {
         margin: 5px 0;
         font-size: 0.95em;
-        color: var(--text-secondary);
+        color: #555555;
       }
 
-      .company-details strong,
-      .invoice-details strong {
-        font-weight: 600;
-        color: var(--text-primary);
+      .section-box strong {
+        font-weight: bold;
+        color: #333333;
       }
-
       .items-table {
         width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin-bottom: 40px;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.03);
+        border-collapse: collapse;
+        margin-bottom: 25px;
+        border: 1px solid #e9ecef;
+        page-break-inside: avoid;
       }
 
       .items-table th,
       .items-table td {
-        padding: 15px;
+        padding: 12px 8px;
         text-align: left;
-        font-size: 0.95em;
-        border-bottom: 1px solid var(--border-color);
+        font-size: 11px;
+        border-bottom: 1px solid #e9ecef;
+        border-right: 1px solid #e9ecef;
+        word-wrap: break-word;
+      }
+
+      .items-table th:last-child,
+      .items-table td:last-child {
+        border-right: none;
       }
 
       .items-table th {
-        background-color: var(--primary-color);
-        font-weight: 600;
+        background-color: #4361ee;
+        font-weight: bold;
         color: white;
         letter-spacing: 0.5px;
+        font-size: 10px;
       }
 
       .items-table tr:last-child td {
@@ -136,124 +163,152 @@
       }
 
       .items-table tr:nth-child(even) {
-        background-color: rgba(67, 97, 238, 0.03);
-      }
-
-      .items-table tr:hover {
-        background-color: rgba(67, 97, 238, 0.05);
+        background-color: #f8f9fa;
       }
 
       .totals {
-        background-color: var(--bg-light);
-        padding: 20px;
-        border-radius: 8px;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border: 1px solid #e9ecef;
+        margin-bottom: 25px;
+        page-break-inside: avoid;
+      }
+
+      .totals-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .totals-table td {
+        padding: 6px 0;
+        font-size: 12px;
+      }
+
+      .totals-table .label-col {
+        text-align: left;
+        width: 70%;
+      }
+
+      .totals-table .amount-col {
         text-align: right;
-        margin-bottom: 40px;
+        width: 30%;
+        font-weight: bold;
       }
 
-      .totals p {
-        margin: 10px 0;
-        font-size: 1em;
-        display: flex;
-        justify-content: space-between;
-      }
-
-      .totals .total-row {
-        font-weight: 700;
-        font-size: 1.2em;
-        color: var(--primary-color);
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 2px solid var(--border-color);
+      .total-row td {
+        font-weight: bold;
+        font-size: 14px;
+        color: #4361ee;
+        padding-top: 10px;
+        border-top: 2px solid #e9ecef;
       }
 
       .footer {
         text-align: center;
-        font-size: 0.9em;
-        color: var(--text-light);
-        border-top: 1px solid var(--border-color);
-        padding-top: 30px;
-        margin-top: 30px;
+        font-size: 10px;
+        color: #777777;
+        border-top: 1px solid #e9ecef;
+        padding-top: 20px;
+        margin-top: 20px;
+        page-break-inside: avoid;
       }
 
       .thank-you {
         text-align: center;
-        background-color: rgba(76, 201, 240, 0.1);
-        color: var(--secondary-color);
-        padding: 15px;
-        border-radius: 8px;
-        font-weight: 500;
-        font-size: 1.2em;
-        margin: 30px 0;
+        background-color: #e7f3ff;
+        color: #3f37c9;
+        padding: 12px;
+        border: 1px solid #4895ef;
+        font-weight: bold;
+        font-size: 14px;
+        margin: 20px 0;
+        page-break-inside: avoid;
       }
 
       .badge {
         display: inline-block;
-        padding: 6px 12px;
-        background-color: var(--accent-color);
+        padding: 4px 10px;
+        background-color: #4895ef;
         color: white;
-        border-radius: 20px;
-        font-size: 0.9em;
-        font-weight: 600;
-        margin-bottom: 20px;
+        border-radius: 15px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-bottom: 15px;
       }
 
-      @media print {
-        body {
-          padding: 0;
-          background-color: var(--bg-white);
-        }
-
-        .container {
-          max-width: 100%;
-          padding: 20px;
-          box-shadow: none;
-          border-radius: 0;
-        }
+      .company-name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #4361ee;
       }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="header">
-        <img src="{{ logo_url }}" alt="Anand Mobiles Logo" />
-        <h1>INVOICE</h1>
+        <div class="header-content">
+          <div class="header-left">
+            {% if logo_url %}
+            <img src="{{ logo_url }}" alt="Anand Mobiles Logo" />
+            {% else %}
+            <img
+              src="https://res.cloudinary.com/dm23rhuct/image/upload/v1749542263/shop_logo/ao5kavrkh8m4mcdvi92h.jpg"
+              alt="Anand Mobiles Logo"
+            />
+            {% endif %}
+          </div>
+          <div class="header-right">
+            <h1>INVOICE</h1>
+          </div>
+        </div>
       </div>
 
       <div class="badge">PAID</div>
 
       <div class="invoice-grid">
-        <div class="company-details">
-          <h3>From</h3>
-          <p><strong>Anand Mobiles</strong></p>
-          <p>123 Tech Street, Gadget City</p>
-          <p>Email: support@anandmobiles.com</p>
-          <p>Phone: (123) 456-7890</p>
+        <div class="grid-row">
+          <div class="grid-left">
+            <div class="section-box">
+              <h3>From</h3>
+              <p><strong>Anand Mobiles</strong></p>
+              <p>123 Tech Street, Gadget City</p>
+              <p>Email: support@anandmobiles.com</p>
+              <p>Phone: (123) 456-7890</p>
+            </div>
+          </div>
+
+          <div class="grid-right">
+            <div class="section-box">
+              <h3>Invoice Details</h3>
+              <p><strong>Invoice Number:</strong> {{ invoice_id }}</p>
+              <p><strong>Order ID:</strong> {{ order_id }}</p>
+              <p><strong>Date:</strong> {{ date }}</p>
+            </div>
+          </div>
         </div>
 
-        <div class="invoice-details">
-          <h3>Invoice Details</h3>
-          <p><strong>Invoice Number:</strong> {{ invoice_id }}</p>
-          <p><strong>Order ID:</strong> {{ order_id }}</p>
-          <p><strong>Date:</strong> {{ date }}</p>
-        </div>
+        <div class="grid-row">
+          <div class="grid-left">
+            <div class="section-box">
+              <h3>Billed To</h3>
+              <p><strong>{{ user_name }}</strong></p>
+              <p>{{ user_email }}</p>
+              {% if shipping_address %}
+              <p>
+                {{ shipping_address.street }}, {{ shipping_address.city }}, {{
+                shipping_address.state }} - {{ shipping_address.zip_code }}
+              </p>
+              {% endif %}
+            </div>
+          </div>
 
-        <div class="billing-details">
-          <h3>Billed To</h3>
-          <p><strong>{{ user_name }}</strong></p>
-          <p>{{ user_email }}</p>
-          {% if shipping_address %}
-          <p>
-            {{ shipping_address.street }}, {{ shipping_address.city }}, {{
-            shipping_address.state }} - {{ shipping_address.zip_code }}
-          </p>
-          {% endif %}
-        </div>
-
-        <div class="payment-details">
-          <h3>Payment Method</h3>
-          <p><strong>Method:</strong> Online Payment</p>
-          <p><strong>Status:</strong> Completed</p>
+          <div class="grid-right">
+            <div class="section-box">
+              <h3>Payment Method</h3>
+              <p><strong>Method:</strong> Online Payment</p>
+              <p><strong>Status:</strong> Completed</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -282,22 +337,24 @@
         </tbody>
       </table>
       <div class="totals">
-        <p>
-          <span>Subtotal:</span>
-          <span>₹{{ subtotal|floatformat:2 }}</span>
-        </p>
-        <p>
-          <span>Shipping:</span>
-          <span>₹{{ shipping_cost|floatformat:2 }}</span>
-        </p>
-        <p>
-          <span>Tax ({{ tax_rate_percentage }}%):</span>
-          <span>₹{{ tax_amount|floatformat:2 }}</span>
-        </p>
-        <p class="total-row">
-          <span>Total Amount:</span>
-          <span>₹{{ total_amount|floatformat:2 }}</span>
-        </p>
+        <table class="totals-table">
+          <tr>
+            <td class="label-col">Subtotal:</td>
+            <td class="amount-col">₹{{ subtotal|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td class="label-col">Shipping:</td>
+            <td class="amount-col">₹{{ shipping_cost|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td class="label-col">Tax ({{ tax_rate_percentage }}%):</td>
+            <td class="amount-col">₹{{ tax_amount|floatformat:2 }}</td>
+          </tr>
+          <tr class="total-row">
+            <td class="label-col">Total Amount:</td>
+            <td class="amount-col">₹{{ total_amount|floatformat:2 }}</td>
+          </tr>
+        </table>
       </div>
 
       <div class="thank-you">Thank you for your purchase!</div>
