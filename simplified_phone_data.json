@@ -1,659 +1,964 @@
-[
-  {
-    "name": "Apple iPhone 6",
-    "brand": "Apple",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-qp4ba4sq-aeny.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "12500",
-        "Good": "10000",
-        "Fair": "7500"
-      },
-      "32GB": {
-        "Like new": "11500",
-        "Good": "9500",
-        "Fair": "7000"
+{
+  "brands": {
+    "apple": {
+      "logo_url": "https://example.com/logos/apple.png",
+      "phone_series": {
+        "iphone_13_series": {
+          "display_name": "iPhone 13 Series",
+          "phones": {
+            "iphone_13": {
+              "display_name": "iPhone 13",
+              "image_url": "https://example.com/phones/iphone_13.png",
+              "launch_year": 2021,
+              "variant_options": {
+                "storage": ["128GB", "256GB", "512GB"],
+                "ram": ["4GB"],
+                "color": ["Blue", "Midnight", "Red"]
+              },
+              "variant_prices": {
+                "128GB": { "4GB": 80000 },
+                "256GB": { "4GB": 86000 },
+                "512GB": { "4GB": 93000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 8.2
+            },
+            "iphone_13_pro": {
+              "display_name": "iPhone 13 Pro",
+              "image_url": "https://example.com/phones/iphone_13_pro.png",
+              "launch_year": 2021,
+              "variant_options": {
+                "storage": ["128GB", "256GB", "512GB", "1TB"],
+                "ram": ["6GB"],
+                "color": ["Graphite", "Gold", "Silver", "Sierra Blue"]
+              },
+              "variant_prices": {
+                "128GB": { "6GB": 115000 },
+                "256GB": { "6GB": 125000 },
+                "512GB": { "6GB": 140000 },
+                "1TB": { "6GB": 155000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 8.7
+            },
+            "iphone_13_mini": {
+              "display_name": "iPhone 13 Mini",
+              "image_url": "https://example.com/phones/iphone_13_mini.png",
+              "launch_year": 2021,
+              "variant_options": {
+                "storage": ["128GB", "256GB"],
+                "ram": ["4GB"],
+                "color": ["Pink", "Blue", "Midnight"]
+              },
+              "variant_prices": {
+                "128GB": { "4GB": 70000 },
+                "256GB": { "4GB": 76000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 7.9
+            }
+          }
+        },
+        "iphone_14_series": {
+          "display_name": "iPhone 14 Series",
+          "phones": {
+            "iphone_14": {
+              "display_name": "iPhone 14",
+              "image_url": "https://example.com/phones/iphone_14.png",
+              "launch_year": 2022,
+              "variant_options": {
+                "storage": ["128GB", "256GB", "512GB"],
+                "ram": ["6GB"],
+                "color": ["Blue", "Purple", "Midnight", "Starlight"]
+              },
+              "variant_prices": {
+                "128GB": { "6GB": 85000 },
+                "256GB": { "6GB": 92000 },
+                "512GB": { "6GB": 99000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 8.5
+            },
+            "iphone_14_pro": {
+              "display_name": "iPhone 14 Pro",
+              "image_url": "https://example.com/phones/iphone_14_pro.png",
+              "launch_year": 2022,
+              "variant_options": {
+                "storage": ["128GB", "256GB", "512GB", "1TB"],
+                "ram": ["6GB"],
+                "color": ["Deep Purple", "Gold", "Silver", "Space Black"]
+              },
+              "variant_prices": {
+                "128GB": { "6GB": 125000 },
+                "256GB": { "6GB": 135000 },
+                "512GB": { "6GB": 150000 },
+                "1TB": { "6GB": 165000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 9.0
+            },
+            "iphone_14_plus": {
+              "display_name": "iPhone 14 Plus",
+              "image_url": "https://example.com/phones/iphone_14_plus.png",
+              "launch_year": 2022,
+              "variant_options": {
+                "storage": ["128GB", "256GB", "512GB"],
+                "ram": ["6GB"],
+                "color": ["Blue", "Purple", "Midnight", "Starlight"]
+              },
+              "variant_prices": {
+                "128GB": { "6GB": 95000 },
+                "256GB": { "6GB": 102000 },
+                "512GB": { "6GB": 109000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 8.3
+            }
+          }
+        }
       }
-    }
-  },
-  {
-    "name": "Apple iPhone 6 Plus",
-    "brand": "Apple",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-yicxxl1r-d1ta.png?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "15000",
-        "Good": "12500",
-        "Fair": "9000"
-      },
-      "64GB": {
-        "Like new": "13500",
-        "Good": "11000",
-        "Fair": "8500"
-      }
-    }
-  },
-  {
-    "name": "Apple iPhone 6S",
-    "brand": "Apple",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-oh9xlwt8-yunr.png?p=default&s=lg",
-    "variant_prices": {
-      "32GB": {
-        "Like new": "16600",
-        "Good": "14100",
-        "Fair": "10800"
-      },
-      "64GB": {
-        "Like new": "18000",
-        "Good": "15500",
-        "Fair": "12000"
-      }
-    }
-  },
-  {
-    "name": "Xiaomi Redmi Note 6 Pro",
-    "brand": "Xiaomi",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-lsl54uvo-f2k5.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "8300",
-        "Good": "6600",
-        "Fair": "5000"
-      },
-      "32GB": {
-        "Like new": "7500",
-        "Good": "6000",
-        "Fair": "4500"
-      }
-    }
-  },
-  {
-    "name": "Xiaomi Mi A2",
-    "brand": "Xiaomi",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-dns8lsdd-ttjp.png?p=default&s=lg",
-    "variant_prices": {
-      "32GB": {
-        "Like new": "10000",
-        "Good": "7500",
-        "Fair": "5800"
-      },
-      "64GB": {
-        "Like new": "12000",
-        "Good": "9500",
-        "Fair": "7000"
-      }
-    }
-  },
-  {
-    "name": "Xiaomi Redmi 6",
-    "brand": "Xiaomi",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-hfpozecy-tots.png?p=default&s=lg",
-    "variant_prices": {
-      "16GB": {
-        "Like new": "6600",
-        "Good": "5000",
-        "Fair": "3300"
-      },
-      "32GB": {
-        "Like new": "7500",
-        "Good": "6000",
-        "Fair": "4000"
-      }
-    }
-  },
-  {
-    "name": "Samsung Galaxy A03",
-    "brand": "Samsung",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/f4f45f98-453e.jpg?p=default&s=lg",
-    "variant_prices": {
-      "32GB": {
-        "Like new": "7500",
-        "Good": "5800",
-        "Fair": "4100"
-      },
-      "64GB": {
-        "Like new": "9000",
-        "Good": "7000",
-        "Fair": "5400"
-      }
-    }
-  },
-  {
-    "name": "Samsung Galaxy A03 Core",
-    "brand": "Samsung",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/a27b520c-8064.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "9100",
-        "Good": "7000",
-        "Fair": "5400"
-      },
-      "32GB": {
-        "Like new": "8000",
-        "Good": "6000",
-        "Fair": "4500"
-      }
-    }
-  },
-  {
-    "name": "Samsung Galaxy A03s",
-    "brand": "Samsung",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/a7d85c1d-7f22.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "10800",
-        "Good": "8300",
-        "Fair": "6200"
-      },
-      "64GB": {
-        "Like new": "9500",
-        "Good": "7000",
-        "Fair": "5000"
-      }
-    }
-  },
-  {
-    "name": "Vivo V9 Pro",
-    "brand": "Vivo",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-04ntnjyu-gjmv.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "11600",
-        "Good": "9100",
-        "Fair": "7100"
-      }
-    }
-  },
-  {
-    "name": "Vivo V11 Pro",
-    "brand": "Vivo",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-occhlr3b-qezs.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "13300",
-        "Good": "10800",
-        "Fair": "7900"
-      }
-    }
-  },
-  {
-    "name": "Vivo V11",
-    "brand": "Vivo",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-nuhjcjp6-qf4s.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "12500",
-        "Good": "10000",
-        "Fair": "7500"
-      }
-    }
-  },
-  {
-    "name": "OnePlus 6T",
-    "brand": "OnePlus",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/490f2c42-fa6f.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "20800",
-        "Good": "18300",
-        "Fair": "15800"
-      }
-    }
-  },
-  {
-    "name": "OnePlus 6",
-    "brand": "OnePlus",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-j46ejfgj-pgtk.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "16600",
-        "Good": "15000",
-        "Fair": "12500"
-      }
-    }
-  },
-  {
-    "name": "OnePlus 5T",
-    "brand": "OnePlus",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-gdokbkgb-c7up.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "OPPO A7",
-    "brand": "OPPO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-z6pw7kri-fajc.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "OPPO F9 Pro",
-    "brand": "OPPO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-pbm1dof6-t9pm.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "OPPO F9",
-    "brand": "OPPO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/30bb2f4c-2e7a.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Realme 2 Pro",
-    "brand": "Realme",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-yktr66ov-8tbh.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Realme C1 2019",
-    "brand": "Realme",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-dvnhaify-qiwo.png?p=default&s=lg",
-    "variant_prices": {
-      "32GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Realme C1",
-    "brand": "Realme",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-dvnhaify-qiwo.png?p=default&s=lg",
-    "variant_prices": {
-      "16GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Motorola One Power",
-    "brand": "Motorola",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-lzveatdg-ccjo.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Motorola Moto G6 Plus",
-    "brand": "Motorola",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-7v8tuma3-jgep.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Motorola Moto Z2 Force",
-    "brand": "Motorola",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-ncqgpdto-bnck.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Lenovo K10 Note",
-    "brand": "Lenovo",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/9e3695a5-8941.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Lenovo K10 Plus",
-    "brand": "Lenovo",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/809568c7-75ba.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Lenovo Z6 Pro",
-    "brand": "Lenovo",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/1d00319c-1c79.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "23300",
-        "Good": "21600",
-        "Fair": "20000"
-      }
-    }
-  },
-  {
-    "name": "Nokia 6.1 Plus",
-    "brand": "Nokia",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-sgvbynm4-glmc.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Nokia 5.1 Plus",
-    "brand": "Nokia",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/bbacde20-12f8.jpg?p=default&s=lg",
-    "variant_prices": {
-      "32GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Nokia 8 Sirocco",
-    "brand": "Nokia",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-1n9bh7yt-cqy1.png?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "23300",
-        "Good": "21600",
-        "Fair": "20000"
-      }
-    }
-  },
-  {
-    "name": "Honor 8X",
-    "brand": "Honor",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-vctom29q-9thf.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Honor Play",
-    "brand": "Honor",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-j0xaef6k-jmmh.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Honor 9N",
-    "brand": "Honor",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-ya61mui3-vpp8.png?p=default&s=lg",
-    "variant_prices": {
-      "32GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Google Pixel 6a",
-    "brand": "Google",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/aa4db01f-994a.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "31600",
-        "Good": "30000",
-        "Fair": "28300"
-      }
-    }
-  },
-  {
-    "name": "Google Pixel 7",
-    "brand": "Google",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/0cd0d597-7f3c.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "40000",
-        "Good": "38300",
-        "Fair": "36600"
-      }
-    }
-  },
-  {
-    "name": "Google Pixel 7 Pro",
-    "brand": "Google",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/718fd286-e166.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "48300",
-        "Good": "46600",
-        "Fair": "45000"
-      }
-    }
-  },
-  {
-    "name": "POCO F1",
-    "brand": "POCO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-m64cqotq-wuf9.png?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "POCO X2",
-    "brand": "POCO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/c2010f32-56d0.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "POCO M2 Pro",
-    "brand": "POCO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/2624ba0b-2f67.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Infinix Hot 7 Pro",
-    "brand": "Infinix",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-7q83hagt-ncje.png?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Infinix Zero 5 Pro",
-    "brand": "Infinix",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/csh-wtgtcmoo-llo9.png?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "23300",
-        "Good": "21600",
-        "Fair": "20000"
-      }
-    }
-  },
-  {
-    "name": "Infinix Hot 8",
-    "brand": "Infinix",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/3a8360b4-cc3a.jpg?p=default&s=lg",
-    "variant_prices": {
-      "64GB": {
-        "Like new": "15000",
-        "Good": "13300",
-        "Fair": "11600"
-      }
-    }
-  },
-  {
-    "name": "Tecno Phantom X",
-    "brand": "Tecno",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/88201347-6413.jpg?p=default&s=lg",
-    "variant_prices": {
-      "256GB": {
-        "Like new": "40000",
-        "Good": "38300",
-        "Fair": "36600"
-      }
-    }
-  },
-  {
-    "name": "Tecno Phantom V Fold 5G",
-    "brand": "Tecno",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/358409d6-c071.jpg?p=default&s=lg",
-    "variant_prices": {
-      "256GB": {
-        "Like new": "48300",
-        "Good": "46600",
-        "Fair": "45000"
-      }
-    }
-  },
-  {
-    "name": "Tecno Phantom X2 5G",
-    "brand": "Tecno",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/67c2092e-69b1.jpg?p=default&s=lg",
-    "variant_prices": {
-      "256GB": {
-        "Like new": "40000",
-        "Good": "38300",
-        "Fair": "36600"
-      }
-    }
-  },
-  {
-    "name": "iQOO 3",
-    "brand": "iQOO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/cd952efa-4c3b.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "23300",
-        "Good": "21600",
-        "Fair": "20000"
-      }
-    }
-  },
-  {
-    "name": "iQOO 7 5G",
-    "brand": "iQOO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/e71a953e-bd2c.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "31600",
-        "Good": "30000",
-        "Fair": "28300"
-      }
-    }
-  },
-  {
-    "name": "iQOO 7 Legend 5G",
-    "brand": "iQOO",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/8256727f-b570.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "40000",
-        "Good": "38300",
-        "Fair": "36600"
-      }
-    }
-  },
-  {
-    "name": "Nothing Phone 1",
-    "brand": "Nothing",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/31aae231-ff78.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "31600",
-        "Good": "30000",
-        "Fair": "28300"
-      }
-    }
-  },
-  {
-    "name": "Nothing Phone 2",
-    "brand": "Nothing",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/8afc5470-8503.jpg?p=default&s=lg",
-    "variant_prices": {
-      "256GB": {
-        "Like new": "48300",
-        "Good": "46600",
-        "Fair": "45000"
-      }
-    }
-  },
-  {
-    "name": "Nothing Phone 2a 5G",
-    "brand": "Nothing",
-    "image": "https://s3no.cashify.in/cashify/product/img/xhdpi/1eee9e65-8bfd.jpg?p=default&s=lg",
-    "variant_prices": {
-      "128GB": {
-        "Like new": "40000",
-        "Good": "38300",
-        "Fair": "36600"
+    },
+    "samsung": {
+      "logo_url": "https://example.com/logos/samsung.png",
+      "phone_series": {
+        "galaxy_s22_series": {
+          "display_name": "Galaxy S22 Series",
+          "phones": {
+            "galaxy_s22": {
+              "display_name": "Galaxy S22",
+              "image_url": "https://example.com/phones/galaxy_s22.png",
+              "launch_year": 2022,
+              "variant_options": {
+                "storage": ["128GB", "256GB"],
+                "ram": ["8GB"],
+                "color": ["Phantom Black", "Phantom White", "Green"]
+              },
+              "variant_prices": {
+                "128GB": { "8GB": 70000 },
+                "256GB": { "8GB": 78000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 7.8
+            },
+            "galaxy_s22_plus": {
+              "display_name": "Galaxy S22+",
+              "image_url": "https://example.com/phones/galaxy_s22_plus.png",
+              "launch_year": 2022,
+              "variant_options": {
+                "storage": ["128GB", "256GB"],
+                "ram": ["8GB"],
+                "color": ["Phantom Black", "Phantom White", "Green"]
+              },
+              "variant_prices": {
+                "128GB": { "8GB": 82000 },
+                "256GB": { "8GB": 90000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 8.0
+            },
+            "galaxy_s22_ultra": {
+              "display_name": "Galaxy S22 Ultra",
+              "image_url": "https://example.com/phones/galaxy_s22_ultra.png",
+              "launch_year": 2022,
+              "variant_options": {
+                "storage": ["256GB", "512GB", "1TB"],
+                "ram": ["12GB"],
+                "color": ["Phantom Black", "Burgundy", "Green"]
+              },
+              "variant_prices": {
+                "256GB": { "12GB": 110000 },
+                "512GB": { "12GB": 125000 },
+                "1TB": { "12GB": 140000 }
+              },
+              "question_groups": {
+                "physical_condition": {
+                  "display_name": "Physical Condition",
+                  "questions": [
+                    {
+                      "id": "screen_condition",
+                      "question_text": "How is the screen condition?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Flawless", "image_url": "https://example.com/q/screen_flawless.png", "price_modifier": 0 },
+                        { "label": "Minor scratches", "image_url": "https://example.com/q/screen_minor.png", "price_modifier": -1000 },
+                        { "label": "Cracked screen", "image_url": "https://example.com/q/screen_cracked.png", "price_modifier": -5000 }
+                      ]
+                    }
+                  ]
+                },
+                "functionality": {
+                  "display_name": "Functionality",
+                  "questions": [
+                    {
+                      "id": "battery_health",
+                      "question_text": "Battery health status?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Above 90%", "image_url": "https://example.com/q/battery_good.png", "price_modifier": 0 },
+                        { "label": "80–90%", "image_url": "https://example.com/q/battery_ok.png", "price_modifier": -1000 },
+                        { "label": "Below 80%", "image_url": "https://example.com/q/battery_poor.png", "price_modifier": -3000 }
+                      ]
+                    },
+                    {
+                      "id": "faults_detected",
+                      "question_text": "Select any faults your phone has",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Touch not working", "image_url": "https://example.com/q/fault_touch.png", "price_modifier": -4000 },
+                        { "label": "Power button issue", "image_url": "https://example.com/q/fault_power.png", "price_modifier": -2000 },
+                        { "label": "Rear camera faulty", "image_url": "https://example.com/q/fault_camera.png", "price_modifier": -3000 },
+                        { "label": "Speaker problem", "image_url": "https://example.com/q/fault_speaker.png", "price_modifier": -1500 },
+                        { "label": "No faults", "image_url": "https://example.com/q/fault_none.png", "price_modifier": 0 }
+                      ]
+                    }
+                  ]
+                },
+                "purchase_info": {
+                  "display_name": "Purchase Information",
+                  "questions": [
+                    {
+                      "id": "purchase_age",
+                      "question_text": "When did you buy the phone?",
+                      "type": "single_choice",
+                      "options": [
+                        { "label": "Below 3 months", "image_url": "https://example.com/q/age_0_3.png", "price_modifier": 1000 },
+                        { "label": "3–6 months", "image_url": "https://example.com/q/age_3_6.png", "price_modifier": 500 },
+                        { "label": "6–11 months", "image_url": "https://example.com/q/age_6_11.png", "price_modifier": 0 },
+                        { "label": "Above 11 months", "image_url": "https://example.com/q/age_11_plus.png", "price_modifier": -1000 }
+                      ]
+                    }
+                  ]
+                },
+                "accessories": {
+                  "display_name": "Accessories",
+                  "questions": [
+                    {
+                      "id": "original_accessories",
+                      "question_text": "Which ORIGINAL accessories are included?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Original Charger", "kind": "original", "image_url": "https://example.com/q/orig_charger.png", "price_modifier": 700 },
+                        { "label": "Original USB‑C / Lightning Cable", "kind": "original", "image_url": "https://example.com/q/orig_cable.png", "price_modifier": 300 },
+                        { "label": "Original EarPods / Earphones", "kind": "original", "image_url": "https://example.com/q/orig_earphones.png", "price_modifier": 400 },
+                        { "label": "Original Box", "kind": "original", "image_url": "https://example.com/q/orig_box.png", "price_modifier": 300 },
+                        { "label": "Original Purchase Bill", "kind": "original", "image_url": "https://example.com/q/orig_bill.png", "price_modifier": 200 }
+                      ]
+                    },
+                    {
+                      "id": "other_accessories",
+                      "question_text": "Any OTHER accessories you’ll provide?",
+                      "type": "multi_choice",
+                      "options": [
+                        { "label": "Third‑party Charger", "kind": "third_party", "image_url": "https://example.com/q/oth_charger.png", "price_modifier": 200 },
+                        { "label": "Protective Case", "kind": "third_party", "image_url": "https://example.com/q/oth_case.png", "price_modifier": 100 },
+                        { "label": "Screen Protector (on device)", "kind": "third_party", "image_url": "https://example.com/q/oth_screenprot.png", "price_modifier": 50 },
+                        { "label": "Bluetooth Earbuds", "kind": "third_party", "image_url": "https://example.com/q/oth_buds.png", "price_modifier": 150 }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "demand_score": 8.6
+            }
+          }
+        }
       }
     }
   }
-]
+}
