@@ -48,6 +48,7 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
 pyHanko==0.29.0
+reportlab==4.0.4
 pyhanko-certvalidator==0.27.0
 PyJWT==2.10.1
 pyparsing==3.2.3
@@ -56,7 +57,6 @@ python-bidi==0.6.6
 python-dotenv==1.1.0
 PyYAML==6.0.2
 razorpay==1.4.2
-reportlab==3.6.13
 requests==2.32.3
 rsa==4.9.1
 setuptools==80.9.0
@@ -72,4 +72,4 @@ uritools==5.0.0
 urllib3==2.4.0
 webencodings==0.5.1
 whitenoise==6.9.0
-xhtml2pdf==0.2.11
+xhtml2pdf==0.2.16

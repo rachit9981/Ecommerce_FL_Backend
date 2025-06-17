@@ -1,6 +1,9 @@
 import jwt
 import logging
 import os
+import platform
+import shutil
+import subprocess
 from functools import wraps
 from typing import Dict, Optional
 from pathlib import Path
@@ -15,6 +18,9 @@ import pdfkit
 from datetime import datetime
 import uuid
 
+# Using only pdfkit for PDF generation
+WEASYPRINT_AVAILABLE = False
+
 # Set up logger for admin authentication
 logger = logging.getLogger(__name__)
 
@@ -22,43 +28,89 @@ class PDFGenerationError(Exception):
     """Custom exception for PDF generation errors"""
     pass
 
-def get_wkhtmltopdf_config() -> pdfkit.configuration:
-    """Get wkhtmltopdf configuration based on the operating system"""
-    wkhtmltopdf_path = (
-        r"C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
-        if os.name == "nt"
-        else r"/usr/bin/wkhtmltopdf"
-    )
-    return pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+def find_wkhtmltopdf_path():
+    """
+    Dynamically find wkhtmltopdf executable path across different platforms.
+    
+    Returns:
+        str: Path to wkhtmltopdf executable, or None if not found
+    """
+    # Common paths to check
+    common_paths = []
+    
+    if platform.system() == "Windows":
+        common_paths = [
+            r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            r"C:\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            "wkhtmltopdf.exe"
+        ]
+    else:  # Linux/Unix/macOS
+        common_paths = [
+            "/usr/bin/wkhtmltopdf",
+            "/usr/local/bin/wkhtmltopdf",
+            "/opt/wkhtmltopdf/bin/wkhtmltopdf",
+            "wkhtmltopdf"
+        ]
+    
+    # Check if wkhtmltopdf is available in PATH
+    try:
+        which_result = shutil.which("wkhtmltopdf")
+        if which_result:
+            logger.info(f"Found wkhtmltopdf in PATH: {which_result}")
+            return which_result
+    except Exception as e:
+        logger.debug(f"Error checking PATH for wkhtmltopdf: {e}")
+    
+    # Check common installation paths
+    for path in common_paths:
+        if os.path.exists(path):
+            logger.info(f"Found wkhtmltopdf at: {path}")
+            return path
+    
+    logger.warning("wkhtmltopdf not found in any common locations")
+    return None
+
+def get_wkhtmltopdf_config():
+    """Get wkhtmltopdf configuration with automatic path detection"""
+    wkhtmltopdf_path = find_wkhtmltopdf_path()
+    
+    if wkhtmltopdf_path:
+        try:
+            return pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        except Exception as e:
+            logger.warning(f"Failed to create pdfkit configuration: {e}")
+            return None
+    else:
+        logger.warning("wkhtmltopdf not found, PDF generation may fail")
+        return None
 
 def get_pdf_options() -> Dict:
-    """Get default PDF generation options"""
+    """Get default PDF generation options optimized for wkhtmltopdf"""
     return {
         "page-size": "A4",
-        "margin-top": "15mm",
-        "margin-right": "15mm",
-        "margin-bottom": "15mm",
-        "margin-left": "15mm",
+        "margin-top": "10mm",
+        "margin-right": "10mm",
+        "margin-bottom": "10mm", 
+        "margin-left": "10mm",
         "encoding": "UTF-8",
         "no-outline": None,
         "enable-local-file-access": None,
-        "print-media-type": True,
-        "enable-smart-shrinking": False,
-        "dpi": "300",
-        "load-error-handling": "ignore",
-        "javascript-delay": "1000",
-        "zoom": "1.0",
-        "enable-external-links": True,
-        "enable-internal-links": True,
-        "images": True,
+        "disable-smart-shrinking": None,
+        "print-media-type": None,
+        "dpi": "96",
+        "image-quality": "100",
+        "enable-external-links": None,
+        "enable-internal-links": None,
+        "images": None,
         "quiet": None,
         "orientation": "Portrait",
-        "title": None,
-        "disable-smart-shrinking": True,
-        "page-width": "210mm",
+        "disable-javascript": None,
+        "load-error-handling": "ignore",
+        "load-media-error-handling": "ignore",
+        "minimum-font-size": "10",
         "page-height": "297mm",
-        "image-quality": 100,
-        "image-dpi": "300",
+        "page-width": "210mm"
     }
 
 def admin_required(view_func):
@@ -194,6 +246,7 @@ def upload_image_to_cloudinary_util(image_file, folder_name="shop_images"):
 def generate_invoice_pdf(invoice_data):
     """
     Generates a PDF invoice from HTML template using the provided invoice data.
+    Uses pdfkit with wkhtmltopdf for PDF generation.
     
     Args:
         invoice_data (dict): Dictionary containing invoice details
@@ -201,10 +254,14 @@ def generate_invoice_pdf(invoice_data):
     Returns:
         io.BytesIO: PDF file buffer, or None if generation fails
     """
+    logger.info(f"Starting PDF generation for order {invoice_data.get('order_id')}")
+    
     try:
+        logger.info("Attempting PDF generation with pdfkit")
+        
         # Prepare context for template
         context = {
-            'logo_url': 'https://res.cloudinary.com/your-cloud/image/upload/v1/static/logo.jpg',  # Update with actual logo URL
+            'logo_url': 'https://res.cloudinary.com/dm23rhuct/image/upload/v1749542263/shop_logo/ao5kavrkh8m4mcdvi92h.jpg',
             'invoice_id': invoice_data.get('invoice_id'),
             'order_id': invoice_data.get('order_id'),
             'date': invoice_data.get('date'),
@@ -219,65 +276,109 @@ def generate_invoice_pdf(invoice_data):
             'total_amount': invoice_data.get('total_amount', 0),
             'current_year': datetime.now().year
         }
-        
-        # Render HTML template
-        html_string = render_to_string('invoice_template.html', context)
-        
-        # Generate PDF using pdfkit
+          # Render HTML template
         try:
-            pdf_bytes = pdfkit.from_string(
-                html_string,
-                False,  # Don't write to file, return bytes
-                options=get_pdf_options(),
-                configuration=get_wkhtmltopdf_config(),
-            )
+            html_string = render_to_string('invoice_template.html', context)
+            logger.info("HTML template rendered successfully")
             
-            # Create PDF buffer from bytes
-            pdf_buffer = io.BytesIO(pdf_bytes)
-            pdf_buffer.seek(0)
+            # Debug: Log a sample of the HTML content (first 500 characters)
+            logger.debug(f"HTML content sample: {html_string[:500]}...")
             
-            logger.info(f"Invoice PDF generated successfully for order {invoice_data.get('order_id')}")
-            return pdf_buffer
-            
-        except OSError as e:
-            # wkhtmltopdf not found, fallback to a simpler approach
-            logger.warning(f"wkhtmltopdf not found, using fallback method: {str(e)}")
-            
-            # Try without configuration (system PATH)
+        except Exception as template_error:
+            logger.error(f"Failed to render HTML template: {str(template_error)}")
+            raise PDFGenerationError(f"Template rendering failed: {str(template_error)}")
+        
+        # Try with configuration first
+        config = get_wkhtmltopdf_config()
+        pdf_options = get_pdf_options()
+        
+        pdf_bytes = None
+        
+        if config:
             try:
+                logger.info("Trying pdfkit with custom configuration")
+                pdf_bytes = pdfkit.from_string(
+                    html_string,
+                    False,  # Don't write to file, return bytes
+                    options=pdf_options,
+                    configuration=config,
+                )
+                
+                if pdf_bytes and isinstance(pdf_bytes, bytes) and len(pdf_bytes) > 100:
+                    logger.info(f"PDF generated with configuration. Size: {len(pdf_bytes)} bytes")
+                else:
+                    logger.warning("PDF generation with configuration returned invalid data")
+                    pdf_bytes = None
+                    
+            except Exception as e:
+                logger.warning(f"pdfkit with configuration failed: {str(e)}")
+                pdf_bytes = None
+        
+        # Try without configuration (system PATH) if previous method failed
+        if not pdf_bytes:
+            try:
+                logger.info("Trying pdfkit without custom configuration")
+                basic_options = {
+                    "page-size": "A4",
+                    "margin-top": "15mm",
+                    "margin-right": "15mm", 
+                    "margin-bottom": "15mm",
+                    "margin-left": "15mm",
+                    "encoding": "UTF-8",
+                    "no-outline": None,
+                    "print-media-type": True,
+                    "quiet": None,
+                    "disable-smart-shrinking": True,
+                }
+                
                 pdf_bytes = pdfkit.from_string(
                     html_string,
                     False,
-                    options={
-                        "page-size": "A4",
-                        "margin-top": "15mm",
-                        "margin-right": "15mm", 
-                        "margin-bottom": "15mm",
-                        "margin-left": "15mm",
-                        "encoding": "UTF-8",
-                        "no-outline": None,
-                        "print-media-type": True,
-                        "quiet": None,
-                    }
+                    options=basic_options
                 )
                 
-                pdf_buffer = io.BytesIO(pdf_bytes)
-                pdf_buffer.seek(0)
-                
-                logger.info(f"Invoice PDF generated successfully (fallback) for order {invoice_data.get('order_id')}")
-                return pdf_buffer
-                
+                if pdf_bytes and isinstance(pdf_bytes, bytes) and len(pdf_bytes) > 100:
+                    logger.info(f"PDF generated with basic options. Size: {len(pdf_bytes)} bytes")
+                else:
+                    logger.warning("PDF generation with basic options returned invalid data")
+                    pdf_bytes = None
+                    
             except Exception as fallback_error:
-                logger.error(f"Fallback PDF generation also failed: {str(fallback_error)}")
-                raise PDFGenerationError(f"Failed to generate PDF: {str(fallback_error)}")
+                logger.error(f"Basic pdfkit generation also failed: {str(fallback_error)}")
+                pdf_bytes = None
+        
+        # Validate and return PDF if successful
+        if pdf_bytes and isinstance(pdf_bytes, bytes) and len(pdf_bytes) > 100:
+            # Verify it's a valid PDF
+            if not pdf_bytes.startswith(b'%PDF'):
+                logger.error("Generated data is not a valid PDF - missing PDF signature")
+                raise PDFGenerationError("Generated PDF data is invalid")
+            
+            pdf_buffer = io.BytesIO(pdf_bytes)
+            pdf_buffer.seek(0)
+            logger.info(f"Invoice PDF generated successfully for order {invoice_data.get('order_id')} - Size: {len(pdf_bytes)} bytes")
+            
+            # Save PDF to disk for debugging
+            save_pdf_to_disk_debug(pdf_buffer, filename="debug_invoice.pdf")
+            
+            return pdf_buffer
+        else:
+            logger.error("All PDF generation methods returned invalid data")
+            raise PDFGenerationError("Failed to generate valid PDF data")
         
     except Exception as e:
-        logger.error(f"Error generating invoice PDF: {str(e)}")
-        return None
+        logger.error(f"Error in pdfkit PDF generation: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+    
+    # All PDF generation methods failed
+    logger.error("PDF generation failed")
+    raise PDFGenerationError("Failed to generate PDF with pdfkit. Please ensure wkhtmltopdf is installed.")
 
 def upload_pdf_to_cloudinary_util(pdf_buffer, filename, folder_name="invoices"):
     """
     Uploads a PDF file buffer to Cloudinary and returns its secure URL.
+    Tries multiple upload methods for better reliability.
     
     Args:
         pdf_buffer (io.BytesIO): The PDF file buffer to upload
@@ -298,27 +399,170 @@ def upload_pdf_to_cloudinary_util(pdf_buffer, filename, folder_name="invoices"):
         else:
             logger.error("CLOUDINARY_URL is not set in settings.")
             return None
-            
-        upload_result = cloudinary.uploader.upload(
-            pdf_buffer,
-            resource_type="auto",  # Auto-detect file type
-            folder=folder_name,
-            public_id=filename,
-            format="pdf"
-        )
         
-        secure_url = upload_result.get('secure_url')
-        print('secure url', secure_url)
+        # Ensure buffer is at the beginning
+        pdf_buffer.seek(0)
         
-        if secure_url:
-            logger.info(f"PDF uploaded successfully to Cloudinary: {secure_url}")
-            return secure_url
-        else:
-            logger.error("Failed to upload PDF to Cloudinary. No secure_url in response.")
+        # Get the raw bytes from the buffer
+        pdf_bytes = pdf_buffer.getvalue()
+        
+        # Validate PDF bytes
+        if not pdf_bytes or len(pdf_bytes) < 100:
+            logger.error(f"PDF buffer is too small or empty. Size: {len(pdf_bytes) if pdf_bytes else 0} bytes")
             return None
+        
+        # Check if it's a valid PDF (starts with PDF signature)
+        if not pdf_bytes.startswith(b'%PDF'):
+            logger.error("Buffer does not contain valid PDF data - missing PDF signature")
+            return None
+        
+        logger.info(f"Uploading PDF to Cloudinary. Size: {len(pdf_bytes)} bytes, Filename: {filename}")
+        
+        # Method 1: Try direct BytesIO upload with 'raw' resource type
+        try:
+            # Create a new BytesIO object with the PDF data for upload
+            upload_buffer = io.BytesIO(pdf_bytes)
+            upload_buffer.seek(0)
+            
+            upload_result = cloudinary.uploader.upload(
+                upload_buffer,
+                resource_type="raw",  # Use 'raw' for PDF files instead of 'auto'
+                folder=folder_name,
+                public_id=filename,
+                format="pdf",
+                use_filename=True,
+                unique_filename=False
+            )
+            
+            secure_url = upload_result.get('secure_url')
+            
+            if secure_url:
+                logger.info(f"PDF uploaded successfully to Cloudinary (method 1): {secure_url}")
+                print('secure url (method 1)', secure_url)
+                return secure_url
+            else:
+                logger.warning("Method 1 failed - no secure_url in response")
+                
+        except Exception as method1_error:
+            logger.warning(f"Method 1 (direct BytesIO) failed: {str(method1_error)}")
+        
+        # Method 2: Try base64 upload as fallback
+        try:
+            logger.info("Trying base64 upload method as fallback")
+            result = upload_pdf_to_cloudinary_base64(pdf_buffer, filename, folder_name)
+            if result:
+                return result
+        except Exception as method2_error:
+            logger.warning(f"Method 2 (base64) failed: {str(method2_error)}")
+        
+        # Method 3: Try with different resource type settings
+        try:
+            logger.info("Trying alternative upload settings")
+            upload_buffer = io.BytesIO(pdf_bytes)
+            upload_buffer.seek(0)
+            
+            upload_result = cloudinary.uploader.upload(
+                upload_buffer,
+                resource_type="auto",  # Let Cloudinary auto-detect
+                folder=folder_name,
+                public_id=filename,
+                use_filename=True,
+                unique_filename=False,
+                allowed_formats=["pdf"]
+            )
+            
+            secure_url = upload_result.get('secure_url')
+            
+            if secure_url:
+                logger.info(f"PDF uploaded successfully to Cloudinary (method 3): {secure_url}")
+                print('secure url (method 3)', secure_url)
+                return secure_url
+                
+        except Exception as method3_error:
+            logger.warning(f"Method 3 (alternative settings) failed: {str(method3_error)}")
+        
+        # All methods failed
+        logger.error("All upload methods failed")
+        return None
             
     except Exception as e:
         logger.error(f"Error uploading PDF to Cloudinary: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return None
+
+def upload_pdf_to_cloudinary_base64(pdf_buffer, filename, folder_name="invoices"):
+    """
+    Alternative method to upload PDF using base64 encoding as fallback.
+    
+    Args:
+        pdf_buffer (io.BytesIO): The PDF file buffer to upload
+        filename (str): The filename for the uploaded PDF
+        folder_name (str): The folder name in Cloudinary
+        
+    Returns:
+        str: The secure URL of the uploaded PDF, or None if upload fails
+    """
+    if not pdf_buffer:
+        logger.error("No PDF buffer provided for base64 Cloudinary upload.")
+        return None
+        
+    try:
+        # Configure Cloudinary using CLOUDINARY_URL from settings.py
+        if CLOUDINARY_URL:
+            cloudinary.config(cloudinary_url=CLOUDINARY_URL, secure=True)
+        else:
+            logger.error("CLOUDINARY_URL is not set in settings.")
+            return None
+        
+        # Ensure buffer is at the beginning
+        pdf_buffer.seek(0)
+        
+        # Get the raw bytes from the buffer
+        pdf_bytes = pdf_buffer.getvalue()
+        
+        # Validate PDF bytes
+        if not pdf_bytes or len(pdf_bytes) < 100:
+            logger.error(f"PDF buffer is too small or empty. Size: {len(pdf_bytes) if pdf_bytes else 0} bytes")
+            return None
+        
+        # Check if it's a valid PDF (starts with PDF signature)
+        if not pdf_bytes.startswith(b'%PDF'):
+            logger.error("Buffer does not contain valid PDF data - missing PDF signature")
+            return None
+        
+        logger.info(f"Uploading PDF to Cloudinary using base64 method. Size: {len(pdf_bytes)} bytes, Filename: {filename}")
+        
+        # Convert to base64
+        import base64
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        data_uri = f"data:application/pdf;base64,{pdf_base64}"
+        
+        upload_result = cloudinary.uploader.upload(
+            data_uri,
+            resource_type="raw",
+            folder=folder_name,
+            public_id=filename,
+            format="pdf",
+            use_filename=True,
+            unique_filename=False
+        )
+        
+        secure_url = upload_result.get('secure_url')
+        print('base64 secure url', secure_url)
+        
+        if secure_url:
+            logger.info(f"PDF uploaded successfully to Cloudinary using base64: {secure_url}")
+            return secure_url
+        else:
+            logger.error("Failed to upload PDF to Cloudinary using base64. No secure_url in response.")
+            logger.error(f"Upload result: {upload_result}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error uploading PDF to Cloudinary using base64: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return None
 
 def create_invoice_data(order_data, user_data, order_items):
@@ -417,4 +661,37 @@ def save_invoice_to_firestore(db, user_id, invoice_data, pdf_url):
         
     except Exception as e:
         logger.error(f"Error saving invoice to Firestore: {str(e)}")
+        return None
+
+def save_pdf_to_disk_debug(pdf_buffer, filename="debug_invoice.pdf"):
+    """
+    Saves PDF buffer to disk for debugging purposes.
+    
+    Args:
+        pdf_buffer (io.BytesIO): The PDF buffer to save
+        filename (str): The filename to save as
+        
+    Returns:
+        str: The file path if saved successfully, None otherwise
+    """
+    try:
+        import tempfile
+        
+        # Create a temporary file
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, filename)
+        
+        # Ensure buffer is at the beginning
+        pdf_buffer.seek(0)
+        
+        # Write buffer to file
+        with open(file_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        logger.info(f"Debug PDF saved to: {file_path}")
+        print(f"Debug PDF saved to: {file_path}")
+        return file_path
+        
+    except Exception as e:
+        logger.error(f"Failed to save debug PDF: {str(e)}")
         return None
