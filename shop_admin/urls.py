@@ -50,9 +50,10 @@ urlpatterns = [
     path('footer/social-links/<int:link_index>/', update_social_link, name='update_social_link'),  # Admin only
     path('footer/links/add/', add_footer_link, name='add_footer_link'),  # Admin only
     path('footer/links/<str:section>/<int:link_index>/delete/', delete_footer_link, name='delete_footer_link'),  # Admin only    path('footer/sections/<str:section>/toggle/', toggle_footer_section, name='toggle_footer_section'),  # Admin only
-    
-    # Page Content management URLs
+      # Page Content management URLs
     path('page-content/<str:page_path>/', get_page_content, name='get_page_content'),  # Admin endpoint
     path('page-content/update/<str:page_path>/', update_page_content, name='update_page_content'),  # Admin endpoint
+    path('page-content/delete/<str:page_path>/', delete_page_content, name='delete_page_content'),  # Admin endpoint
+    path('content/pages/', list_all_pages, name='list_all_pages'),  # Public endpoint to list all available pages
     path('content/pages/<str:page_path>/', public_get_page_content, name='public_get_page_content'),  # Public endpoint
 ]

@@ -633,6 +633,7 @@ def delete_banner(request, banner_id):
     """Delete a banner by its ID"""
     if request.method != 'DELETE':
         return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
     try:
         # Delete banner from Firebase
         banner_ref = db.collection('banners').document(banner_id)
@@ -1547,15 +1548,31 @@ def get_page_content(request, page_path):
     """Admin endpoint to get page content by path."""
     if request.method == 'GET':
         try:
-            page_content = PageContent.get_by_path(page_path)
-            return JsonResponse({
-                'page_path': page_content.page_path,
-                'content': page_content.content,
-                'last_updated': page_content.last_updated
-            })
+            # Directly access Firebase
+            doc_ref = db.collection('page_contents').document(page_path)
+            doc = doc_ref.get()
+            
+            if doc.exists:
+                data = doc.to_dict()
+                return JsonResponse({
+                    'page_path': data.get('page_path', page_path),
+                    'content': data.get('content', ''),
+                    'last_updated': data.get('last_updated', None),
+                    'title': data.get('title', ''),
+                    'is_custom': data.get('is_custom', False)
+                })
+            else:
+                # Return empty content if page doesn't exist
+                return JsonResponse({
+                    'page_path': page_path,
+                    'content': '',
+                    'last_updated': None,
+                    'title': '',
+                    'is_custom': False
+                })
         except Exception as e:
             logger.error(f"Error retrieving page content: {str(e)}")
-            return JsonResponse({'error': 'Failed to retrieve page content'}, status=500)
+            return JsonResponse({'error': f'Failed to retrieve page content: {str(e)}'}, status=500)
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
@@ -1567,14 +1584,33 @@ def update_page_content(request, page_path):
         try:
             data = json.loads(request.body)
             content = data.get('content', '')
+            is_custom = data.get('is_custom', False)
             
-            # Update or create page content
-            page_content = PageContent.update(page_path, content)
+            # Update or create page content directly in Firebase
+            from datetime import datetime
+            doc_ref = db.collection('page_contents').document(page_path)
             
+            # Generate a title from page_path
+            words = page_path.replace('-', ' ').split()
+            title = ' '.join(word.capitalize() for word in words)
+            
+            # Set document data
+            page_data = {
+                'page_path': page_path,
+                'content': content,
+                'last_updated': datetime.now(),
+                'title': data.get('title', title),
+                'is_custom': is_custom
+            }
+            
+            # Update the document
+            doc_ref.set(page_data)
+            
+            # Return response
             return JsonResponse({
-                'page_path': page_content.page_path,
-                'content': page_content.content,
-                'last_updated': page_content.last_updated
+                'page_path': page_path,
+                'content': content,
+                'last_updated': page_data['last_updated']
             })
         except Exception as e:
             logger.error(f"Error updating page content: {str(e)}")
@@ -1582,18 +1618,78 @@ def update_page_content(request, page_path):
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+@csrf_exempt
+@admin_required
+def delete_page_content(request, page_path):
+    """Delete a page content"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        # Check if page exists directly in Firebase
+        doc_ref = db.collection('page_contents').document(page_path)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            return JsonResponse({'error': 'Page not found'}, status=404)
+        
+        # Get the document data to check if it's a custom page
+        data = doc.to_dict()
+        if not data.get('is_custom', False):
+            return JsonResponse({'error': 'Only custom pages can be deleted'}, status=403)
+            
+        # Delete the page directly from Firebase
+        doc_ref.delete()
+        return JsonResponse({'message': 'Page deleted successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error deleting page content: {str(e)}")
+        return JsonResponse({'error': f'Failed to delete page content: {str(e)}'}, status=500)
+
 # Public view for retrieving page content for frontend display
 @csrf_exempt
 def public_get_page_content(request, page_path):
     """Public endpoint to get page content by path."""
     if request.method == 'GET':
         try:
-            page_content = PageContent.get_by_path(page_path)
-            return JsonResponse({
-                'content': page_content.content
-            })
+            # Directly access Firebase
+            doc_ref = db.collection('page_contents').document(page_path)
+            doc = doc_ref.get()
+            
+            if doc.exists:
+                data = doc.to_dict()
+                return JsonResponse({
+                    'content': data.get('content', '')
+                })
+            else:
+                return JsonResponse({'content': ''})
         except Exception as e:
             logger.error(f"Error retrieving public page content: {str(e)}")
-            return JsonResponse({'error': 'Failed to retrieve page content'}, status=500)
+            return JsonResponse({'error': f'Failed to retrieve page content: {str(e)}'}, status=500)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+def list_all_pages(request):
+    """Public endpoint to list all available pages."""
+    if request.method == 'GET':
+        try:
+            # Get direct reference to the Firebase collection
+            page_collection = db.collection('page_contents')
+            page_docs = page_collection.stream()
+            
+            # Format the response
+            pages = []
+            for doc in page_docs:
+                data = doc.to_dict()
+                pages.append({
+                    'path': data.get('page_path', ''),
+                    'title': data.get('title', ''),
+                    'is_custom': data.get('is_custom', False)
+                })
+            
+            return JsonResponse({'pages': pages}, status=200)
+        except Exception as e:
+            logger.error(f"Error listing pages: {str(e)}")
+            return JsonResponse({'error': f'Failed to list pages: {str(e)}'}, status=500)
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
