@@ -130,8 +130,7 @@ def submit_sell_mobile(request):
             data['status'] = 'pending'
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
-            
-            # Store in sell_mobile_listings collection
+              # Store in sell_mobile_listings collection
             doc_ref = db.collection('sell_mobile_listings').document()
             doc_ref.set(data)
             
@@ -314,14 +313,18 @@ def submit_inquiry(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            
-            required_fields = ['sell_mobile_id', 'user_id', 'buyer_phone', 'address'] # user_id is from @user_required
+            required_fields = ['phone_model_id', 'user_id', 'address'] # buyer_phone is optional
             if data.get('user_id') != request.user_id:
                  return JsonResponse({'status': 'error', 'message': 'User ID mismatch or not authorized.'}, status=403)
 
             for field in required_fields:
                 if field not in data:
                     return JsonResponse({'status': 'error', 'message': f'Missing required field: {field}'}, status=400)
+            
+            # Validate buyer_phone if provided
+            buyer_phone = data.get('buyer_phone', '')
+            if buyer_phone and not isinstance(buyer_phone, str):
+                return JsonResponse({'status': 'error', 'message': 'buyer_phone must be a string.'}, status=400)
             
             # Validate address structure
             address = data.get('address')
@@ -353,28 +356,152 @@ def submit_inquiry(request):
                     return JsonResponse({
                         'status': 'error', 
                         'message': f'questionnaire_answers[{question_key}] must be a list of answers.'
+                    }, status=400)            
+            phone_model_id = data['phone_model_id']
+            
+            # Get phone catalog data to validate the phone model and variants
+            catalog_ref = db.collection('phone_catalog').document('catalog_data')
+            catalog_doc = catalog_ref.get()
+            
+            if not catalog_doc.exists:
+                return JsonResponse({'status': 'error', 'message': 'Phone catalog not found.'}, status=404)
+            
+            catalog_data = catalog_doc.to_dict()
+            
+            # Find the phone model in the catalog
+            phone_data = None
+            brand = None
+            phone_series = None
+            
+            for brand_key, brand_data in catalog_data.get('brands', {}).items():
+                for series_key, series_data in brand_data.get('phone_series', {}).items():
+                    if phone_model_id in series_data.get('phones', {}):
+                        phone_data = series_data['phones'][phone_model_id]
+                        brand = brand_key
+                        phone_series = series_key
+                        break
+                if phone_data:
+                    break
+            
+            if not phone_data:
+                return JsonResponse({'status': 'error', 'message': f'Phone model "{phone_model_id}" not found in catalog.'}, status=404)
+            
+            # Validate selected storage and RAM against the phone catalog
+            variant_options = phone_data.get('variant_options', {})
+            variant_prices = phone_data.get('variant_prices', {})
+            
+            if selected_storage:
+                available_storage = variant_options.get('storage', [])
+                if selected_storage not in available_storage:
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Invalid storage option: {selected_storage}. Available options: {available_storage}'
                     }, status=400)
             
-            sell_mobile_id = data['sell_mobile_id']
-            sell_mobile_ref = db.collection('sell_mobile_listings').document(sell_mobile_id)
-            mobile_doc = sell_mobile_ref.get()
+            if selected_ram:
+                available_ram = variant_options.get('ram', [])
+                if selected_ram not in available_ram:
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Invalid RAM option: {selected_ram}. Available options: {available_ram}'
+                    }, status=400)
             
-            if not mobile_doc.exists:
-                return JsonResponse({'status': 'error', 'message': 'Sell mobile listing not found.'}, status=404)
+            # Validate that the storage/RAM combination is available in variant_prices
+            if selected_storage and selected_ram:
+                if (selected_storage not in variant_prices or 
+                    selected_ram not in variant_prices.get(selected_storage, {})):
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Variant combination {selected_storage}/{selected_ram} is not available for this phone model.'
+                    }, status=400)
+              # Validate questionnaire answers against phone catalog questions
+            question_groups = phone_data.get('question_groups', {})
             
-            # Set default status and timestamps
+            # Build a map of question_id to valid options for easier validation
+            question_id_to_options = {}
+            for group_name, group_data in question_groups.items():
+                for question in group_data.get('questions', []):
+                    question_id = question.get('id')
+                    if question_id:
+                        question_id_to_options[question_id] = {
+                            'options': [opt.get('label') for opt in question.get('options', [])],
+                            'type': question.get('type', 'multi_choice')
+                        }
+              # Validate each questionnaire answer
+            for question_id, user_answers in questionnaire_answers.items():
+                if question_id not in question_id_to_options:
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Invalid question ID: {question_id}'
+                    }, status=400)
+                
+                question_info = question_id_to_options[question_id]
+                valid_options = question_info['options']
+                question_type = question_info['type']
+                
+                # Validate answer format based on question type
+                if question_type == 'single_choice' and len(user_answers) > 1:
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Question "{question_id}" is single choice but multiple answers provided'
+                    }, status=400)
+                
+                # Validate each answer
+                for user_answer in user_answers:
+                    if user_answer not in valid_options:
+                        return JsonResponse({
+                            'status': 'error', 
+                            'message': f'Invalid answer "{user_answer}" for question "{question_id}". Valid options: {valid_options}'
+                        }, status=400)
+            
+            # Calculate estimated price for quote inquiries
+            estimated_price = 0
+            if selected_storage and selected_ram and variant_prices:
+                # Get base price for the selected variant
+                base_price = variant_prices.get(selected_storage, {}).get(selected_ram, 0)
+                estimated_price = base_price
+                
+                # Apply questionnaire modifiers to calculate estimated price
+                for question_id, user_answers in questionnaire_answers.items():
+                    if question_id in question_id_to_options:
+                        # Find the corresponding question in question_groups to get price modifiers
+                        for group_name, group_data in question_groups.items():
+                            for question in group_data.get('questions', []):
+                                if question.get('id') == question_id:
+                                    # Apply price modifiers for each selected answer
+                                    for user_answer in user_answers:
+                                        for option in question.get('options', []):
+                                            if option.get('label') == user_answer:
+                                                price_modifier = option.get('price_modifier', 0)
+                                                estimated_price += price_modifier
+                                                break
+                                    break
+                            else:
+                                continue
+                            break
+            
+            # Add phone catalog information to the inquiry data
+            data['brand'] = brand
+            data['phone_series'] = phone_series
+            data['phone_model'] = phone_model_id
+            data['phone_display_name'] = phone_data.get('display_name', phone_model_id)
+            data['estimated_price'] = estimated_price
+            data['base_price'] = variant_prices.get(selected_storage, {}).get(selected_ram, 0) if selected_storage and selected_ram else 0
+              # Set default status and timestamps
             data['status'] = data.get('status', 'pending') # Default status
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
             
             # Save inquiry to Firestore
-            doc_ref = db.collection('sell_mobile_inquiries').document()
+            doc_ref = db.collection('phone_inquiries').document()
             doc_ref.set(data)
             
             return JsonResponse({
                 'status': 'success',
                 'message': 'Inquiry submitted successfully',
-                'id': doc_ref.id
+                'id': doc_ref.id,
+                'estimated_price': estimated_price,
+                'base_price': data.get('base_price', 0)
             })
             
         except json.JSONDecodeError:
@@ -395,7 +522,7 @@ def fetch_user_inquiries(request):
 
     try:
         user_id = request.user_id # From @user_required decorator
-        inquiries_ref = db.collection('sell_mobile_inquiries').where('user_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING)
+        inquiries_ref = db.collection('phone_inquiries').where('user_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING)
         inquiries_list = []
         
         for inquiry_doc in inquiries_ref.stream():
@@ -444,7 +571,7 @@ def fetch_inquiries_for_mobile(request):
     try:
         sell_mobile_id_filter = request.GET.get('sell_mobile_id')
         
-        query = db.collection('sell_mobile_inquiries')
+        query = db.collection('phone_inquiries')
         
         if sell_mobile_id_filter:
             query = query.where('sell_mobile_id', '==', sell_mobile_id_filter)
@@ -782,3 +909,194 @@ def manage_faq_detail(request, faq_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON data for PUT request.'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@csrf_exempt
+def get_quote_estimate(request):
+    """
+    Get an estimated price quote for a mobile phone based on specifications and condition.
+    This endpoint provides a quick price estimate without creating an inquiry record.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            required_fields = ['phone_model_id', 'selected_storage', 'selected_ram', 'questionnaire_answers']
+            
+            for field in required_fields:
+                if field not in data:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Missing required field: {field}'
+                    }, status=400)
+            
+            phone_model_id = data['phone_model_id']
+            selected_storage = data['selected_storage']
+            selected_ram = data['selected_ram']
+            questionnaire_answers = data['questionnaire_answers']
+            
+            # Validate questionnaire answers structure
+            if not isinstance(questionnaire_answers, dict):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'questionnaire_answers must be a dictionary.'
+                }, status=400)
+            
+            # Get phone catalog data
+            catalog_ref = db.collection('phone_catalog').document('catalog_data')
+            catalog_doc = catalog_ref.get()
+            
+            if not catalog_doc.exists:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Phone catalog not found.'
+                }, status=404)
+            
+            catalog_data = catalog_doc.to_dict()
+            
+            # Find the phone model in the catalog
+            phone_data = None
+            brand = None
+            phone_series = None
+            
+            for brand_key, brand_data in catalog_data.get('brands', {}).items():
+                for series_key, series_data in brand_data.get('phone_series', {}).items():
+                    if phone_model_id in series_data.get('phones', {}):
+                        phone_data = series_data['phones'][phone_model_id]
+                        brand = brand_key
+                        phone_series = series_key
+                        break
+                if phone_data:
+                    break
+            
+            if not phone_data:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Phone model "{phone_model_id}" not found in catalog.'
+                }, status=404)
+            
+            # Validate storage and RAM options
+            variant_options = phone_data.get('variant_options', {})
+            variant_prices = phone_data.get('variant_prices', {})
+            
+            available_storage = variant_options.get('storage', [])
+            if selected_storage not in available_storage:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Invalid storage option: {selected_storage}. Available options: {available_storage}'
+                }, status=400)
+            
+            available_ram = variant_options.get('ram', [])
+            if selected_ram not in available_ram:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Invalid RAM option: {selected_ram}. Available options: {available_ram}'
+                }, status=400)
+            
+            # Validate variant combination
+            if (selected_storage not in variant_prices or 
+                selected_ram not in variant_prices.get(selected_storage, {})):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Variant combination {selected_storage}/{selected_ram} is not available for this phone model.'
+                }, status=400)
+            
+            # Get base price
+            base_price = variant_prices[selected_storage][selected_ram]
+            estimated_price = base_price
+            
+            # Build question validation map
+            question_groups = phone_data.get('question_groups', {})
+            question_id_to_options = {}
+            for group_name, group_data in question_groups.items():
+                for question in group_data.get('questions', []):
+                    question_id = question.get('id')
+                    if question_id:
+                        question_id_to_options[question_id] = {
+                            'options': [opt.get('label') for opt in question.get('options', [])],
+                            'type': question.get('type', 'multi_choice')
+                        }
+            
+            # Validate and apply questionnaire answers
+            applied_modifiers = []
+            for question_id, user_answers in questionnaire_answers.items():
+                if question_id not in question_id_to_options:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Invalid question ID: {question_id}'
+                    }, status=400)
+                
+                if not isinstance(user_answers, list):
+                    user_answers = [user_answers]
+                
+                question_info = question_id_to_options[question_id]
+                valid_options = question_info['options']
+                question_type = question_info['type']
+                
+                # Validate answer format
+                if question_type == 'single_choice' and len(user_answers) > 1:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Question "{question_id}" is single choice but multiple answers provided'
+                    }, status=400)
+                
+                # Validate and apply price modifiers
+                for user_answer in user_answers:
+                    if user_answer not in valid_options:
+                        return JsonResponse({
+                            'status': 'error',
+                            'message': f'Invalid answer "{user_answer}" for question "{question_id}". Valid options: {valid_options}'
+                        }, status=400)
+                    
+                    # Find and apply price modifier
+                    for group_name, group_data in question_groups.items():
+                        for question in group_data.get('questions', []):
+                            if question.get('id') == question_id:
+                                for option in question.get('options', []):
+                                    if option.get('label') == user_answer:
+                                        price_modifier = option.get('price_modifier', 0)
+                                        estimated_price += price_modifier
+                                        applied_modifiers.append({
+                                            'question_id': question_id,
+                                            'answer': user_answer,
+                                            'modifier': price_modifier
+                                        })
+                                        break
+                                break
+                        else:
+                            continue
+                        break
+            
+            return JsonResponse({
+                'status': 'success',
+                'quote_estimate': {
+                    'phone_model_id': phone_model_id,
+                    'brand': brand,
+                    'phone_series': phone_series,
+                    'phone_display_name': phone_data.get('display_name', phone_model_id),
+                    'selected_variant': {
+                        'storage': selected_storage,
+                        'ram': selected_ram
+                    },
+                    'base_price': base_price,
+                    'estimated_price': estimated_price,
+                    'price_difference': estimated_price - base_price,
+                    'applied_modifiers': applied_modifiers,
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'An error occurred: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Only POST method allowed'
+    }, status=405)

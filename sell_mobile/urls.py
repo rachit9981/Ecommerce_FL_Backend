@@ -12,7 +12,8 @@ from .views import (
     get_phone_details,         # Endpoint to get details for a specific phone model for price calculation UI
     temp_bulk_upload_from_json_file, # Temporary endpoint for bulk upload
     manage_faqs,               # For GET all FAQs and POST new FAQ
-    manage_faq_detail          # For GET, PUT, DELETE specific FAQ by ID
+    manage_faq_detail,         # For GET, PUT, DELETE specific FAQ by ID
+    get_quote_estimate         # For quote estimation without creating inquiry
 )
 
 urlpatterns = [
@@ -33,9 +34,10 @@ urlpatterns = [
     path('catalog/details/<str:brand>/<str:phone_series>/<str:phone_model>/', get_phone_details, name='get-phone-model-details'), # GET specific model details
 
     # Temporary Bulk Upload URL (Consider removing or securing after use)
-    path('catalog/temp-bulk-upload/', temp_bulk_upload_from_json_file, name='temp-bulk-upload-catalog'),
-
-    # FAQ Management URLs
+    path('catalog/temp-bulk-upload/', temp_bulk_upload_from_json_file, name='temp-bulk-upload-catalog'),    # FAQ Management URLs
     path('faqs/', manage_faqs, name='manage-faqs'), # GET for all, POST for new
     path('faqs/<str:faq_id>/', manage_faq_detail, name='manage-faq-detail'), # GET, PUT, DELETE by ID
+    
+    # Quote Estimation URL
+    path('quote-estimate/', get_quote_estimate, name='get-quote-estimate'), # POST for price estimation
 ]
