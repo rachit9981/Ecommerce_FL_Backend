@@ -259,17 +259,15 @@ def fetch_all_products(request):
 @csrf_exempt
 def fetch_categories(request):
     try:
-        # Get all products from Firestore
-        products_ref = db.collection('products').stream()
-        
-        # Extract unique categories
-        categories = set()
-        for doc in products_ref:
-            product_data = doc.to_dict()
-            if 'category' in product_data and product_data['category']:
-                categories.add(product_data['category'])
-                
-        return JsonResponse({'categories': list(categories)})
+        categories_ref = db.collection('categories').stream()
+
+        categories = []
+        for doc in categories_ref:
+            category_data = doc.to_dict()
+            category_data['id'] = doc.id  # Add document ID
+            categories.append(category_data)
+
+        return JsonResponse({'categories': categories})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f"Error fetching categories: {str(e)}"}, status=500)
 
