@@ -10,7 +10,6 @@ from .views import (
     upload_phone_data,         # Endpoint to upload/update the catalog
     fetch_all_mobiles_catalog, # Endpoint to get the entire catalog (e.g., for admin or initial load)
     get_phone_details,         # Endpoint to get details for a specific phone model for price calculation UI
-    calculate_phone_price,      # Endpoint to calculate price based on selections
     temp_bulk_upload_from_json_file, # Temporary endpoint for bulk upload
     manage_faqs,               # For GET all FAQs and POST new FAQ
     manage_faq_detail          # For GET, PUT, DELETE specific FAQ by ID
@@ -32,7 +31,6 @@ urlpatterns = [
     path('catalog/upload/', upload_phone_data, name='upload-phone-catalog'), # POST new catalog
     path('catalog/all/', fetch_all_mobiles_catalog, name='fetch-all-mobiles-catalog'), # GET entire catalog
     path('catalog/details/<str:brand>/<str:phone_series>/<str:phone_model>/', get_phone_details, name='get-phone-model-details'), # GET specific model details
-    path('catalog/calculate-price/', calculate_phone_price, name='calculate-phone-price'), # POST selections to get price
 
     # Temporary Bulk Upload URL (Consider removing or securing after use)
     path('catalog/temp-bulk-upload/', temp_bulk_upload_from_json_file, name='temp-bulk-upload-catalog'),

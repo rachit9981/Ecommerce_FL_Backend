@@ -13,7 +13,8 @@ import os # For joining paths
 @csrf_exempt
 def submit_sell_mobile(request):
     """
-    Submit a mobile for selling with dynamic pricing based on questions and variants
+    Submit a mobile for selling with dynamic pricing based on questions and variants.
+    This validates against the phone catalog and calculates price based on question answers.
     """
     if request.method == 'POST':
         try:
@@ -21,7 +22,7 @@ def submit_sell_mobile(request):
             
             required_fields = ['user_name', 'phone_number', 'email', 'location', 
                              'brand', 'phone_series', 'phone_model', 'selected_variant', 
-                             'question_answers', 'calculated_price']
+                             'question_answers']
             
             for field in required_fields:
                 if field not in data:
@@ -30,7 +31,73 @@ def submit_sell_mobile(request):
                         'message': f'Missing required field: {field}'
                     }, status=400)
             
-            # Validate question_answers structure
+            # Get phone catalog to validate the submission
+            catalog_doc_ref = db.collection('phone_catalog').document('catalog_data')
+            catalog_doc = catalog_doc_ref.get()
+            
+            if not catalog_doc.exists:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Phone catalog not found'
+                }, status=404)
+            
+            catalog_data = catalog_doc.to_dict()
+            brands = catalog_data.get('brands', {})
+            
+            # Validate phone exists in catalog
+            brand = data['brand']
+            phone_series = data['phone_series']
+            phone_model = data['phone_model']
+            
+            if brand not in brands:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Brand "{brand}" not found in catalog'
+                }, status=400)
+            
+            if phone_series not in brands[brand].get('phone_series', {}):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Phone series "{phone_series}" not found for brand "{brand}"'
+                }, status=400)
+            
+            phones = brands[brand]['phone_series'][phone_series].get('phones', {})
+            if phone_model not in phones:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Phone model "{phone_model}" not found in series "{phone_series}"'
+                }, status=400)
+            
+            phone_data = phones[phone_model]
+            
+            # Validate selected variant
+            selected_variant = data.get('selected_variant', {})
+            if not isinstance(selected_variant, dict):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Invalid selected_variant format, must be a dictionary'
+                }, status=400)
+            
+            # Validate storage and RAM combination exists in variant_prices
+            storage = selected_variant.get('storage')
+            ram = selected_variant.get('ram')
+            
+            if not storage or not ram:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Storage and RAM must be specified in selected_variant'
+                }, status=400)
+            
+            variant_prices = phone_data.get('variant_prices', {})
+            if storage not in variant_prices or ram not in variant_prices[storage]:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Variant combination {storage}/{ram} not available for this phone model'
+                }, status=400)
+            
+            base_price = variant_prices[storage][ram]
+            
+            # Validate and calculate price based on question answers
             question_answers = data.get('question_answers', {})
             if not isinstance(question_answers, dict):
                 return JsonResponse({
@@ -38,25 +105,41 @@ def submit_sell_mobile(request):
                     'message': 'Invalid question_answers format, must be a dictionary'
                 }, status=400)
             
-            # Validate selected_variant structure (e.g., storage, ram, color)
-            selected_variant = data.get('selected_variant', {})
-            if not isinstance(selected_variant, dict):
-                 return JsonResponse({
-                    'status': 'error',
-                    'message': 'Invalid selected_variant format, must be a dictionary'
-                }, status=400)
+            calculated_price = base_price
+            question_groups = phone_data.get('question_groups', {})
             
-            data['status'] = 'pending' # Initial status
+            # Process each question group and calculate price modifiers
+            for group_key, group_data in question_groups.items():
+                questions = group_data.get('questions', [])
+                for question in questions:
+                    question_id = question.get('id')
+                    if question_id in question_answers:
+                        user_answers = question_answers[question_id]
+                        if not isinstance(user_answers, list):
+                            user_answers = [user_answers]
+                        
+                        for answer in user_answers:
+                            # Find the option and apply price modifier
+                            for option in question.get('options', []):
+                                if option.get('label') == answer:
+                                    calculated_price += option.get('price_modifier', 0)
+                                    break
+            
+            data['calculated_price'] = calculated_price
+            data['base_price'] = base_price
+            data['status'] = 'pending'
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
             
-            doc_ref = db.collection('sell_mobiles').document()
+            # Store in sell_mobile_listings collection
+            doc_ref = db.collection('sell_mobile_listings').document()
             doc_ref.set(data)
             
             return JsonResponse({
                 'status': 'success',
                 'message': 'Mobile submitted for selling successfully',
-                'id': doc_ref.id
+                'id': doc_ref.id,
+                'calculated_price': calculated_price
             })
             
         except json.JSONDecodeError:
@@ -90,17 +173,12 @@ def fetch_sell_mobiles(request):
         min_price_filter = request.GET.get('min_price', '')
         max_price_filter = request.GET.get('max_price', '')
         
-        query = db.collection('sell_mobiles').where('status', '==', status)
+        query = db.collection('sell_mobile_listings').where('status', '==', status)
         
         if brand_filter:
             query = query.where('brand', '==', brand_filter)
         if phone_series_filter:
             query = query.where('phone_series', '==', phone_series_filter)
-        
-        # Firestore does not support multiple inequality filters on different fields or combining orderBy with all types of filters easily.
-        # Price filtering will be done client-side or after fetching initial data if complex.
-        # For server-side, if only price filtering is needed without brand/series, it's simpler.
-        # Here, we fetch then filter by price in Python.
         
         docs = query.stream()
         
@@ -126,7 +204,7 @@ def fetch_sell_mobiles(request):
                 grouped_phones[brand_name][series_name] = {}
             if phone_model not in grouped_phones[brand_name][series_name]:
                 grouped_phones[brand_name][series_name][phone_model] = {
-                    'display_name': phone_model, # Or fetch from catalog if needed
+                    'display_name': phone_model,
                     'listings': [],
                     'price_range': {'min': float('inf'), 'max': float('-inf')}
                 }
@@ -137,8 +215,9 @@ def fetch_sell_mobiles(request):
                 'location': mobile_data.get('location', ''),
                 'selected_variant': mobile_data.get('selected_variant', {}),
                 'calculated_price': mobile_data.get('calculated_price', 0),
+                'base_price': mobile_data.get('base_price', 0),
                 'created_at': mobile_data.get('created_at', ''),
-                'question_answers': mobile_data.get('question_answers', {}) # Include for completeness
+                'question_answers': mobile_data.get('question_answers', {})
             }
             
             grouped_phones[brand_name][series_name][phone_model]['listings'].append(listing_info)
@@ -150,9 +229,9 @@ def fetch_sell_mobiles(request):
         
         phones_list = []
         for brand_name, series_dict in grouped_phones.items():
-            for series_name, phones_dict_val in series_dict.items(): # renamed phones_dict to avoid conflict
-                for phone_model_name, model_data in phones_dict_val.items(): # iterate through models
-                    if model_data['listings']: # Only add if there are listings
+            for series_name, phones_dict_val in series_dict.items():
+                for phone_model_name, model_data in phones_dict_val.items():
+                    if model_data['listings']:
                         phones_list.append({
                             'brand': brand_name,
                             'phone_series': series_name,
@@ -192,7 +271,7 @@ def fetch_sell_mobile_details(request, mobile_id):
     Fetch details of a specific sell mobile listing
     """
     try:
-        doc_ref = db.collection('sell_mobiles').document(mobile_id)
+        doc_ref = db.collection('sell_mobile_listings').document(mobile_id)
         doc = doc_ref.get()
         
         if not doc.exists:
@@ -230,7 +309,7 @@ def fetch_sell_mobile_details(request, mobile_id):
 @csrf_exempt
 def submit_inquiry(request):
     """
-    Submit an inquiry for a sell mobile listing
+    Submit an inquiry for a sell mobile listing with storage, RAM preferences and questionnaire answers
     """
     if request.method == 'POST':
         try:
@@ -244,6 +323,7 @@ def submit_inquiry(request):
                 if field not in data:
                     return JsonResponse({'status': 'error', 'message': f'Missing required field: {field}'}, status=400)
             
+            # Validate address structure
             address = data.get('address')
             if not isinstance(address, dict):
                 return JsonResponse({'status': 'error', 'message': 'Address must be a dictionary.'}, status=400)
@@ -253,17 +333,41 @@ def submit_inquiry(request):
                 if field not in address:
                     return JsonResponse({'status': 'error', 'message': f'Missing address field: {field}'}, status=400)
             
+            # Validate optional storage and RAM preferences
+            selected_storage = data.get('selected_storage')
+            selected_ram = data.get('selected_ram')
+            
+            if selected_storage and not isinstance(selected_storage, str):
+                return JsonResponse({'status': 'error', 'message': 'selected_storage must be a string value.'}, status=400)
+            
+            if selected_ram and not isinstance(selected_ram, str):
+                return JsonResponse({'status': 'error', 'message': 'selected_ram must be a string value.'}, status=400)
+            
+            # Validate questionnaire answers structure
+            questionnaire_answers = data.get('questionnaire_answers', {})
+            if questionnaire_answers and not isinstance(questionnaire_answers, dict):
+                return JsonResponse({'status': 'error', 'message': 'questionnaire_answers must be a dictionary.'}, status=400)
+              # Validate that each questionnaire answer contains a list
+            for question_key, answer_value in questionnaire_answers.items():
+                if not isinstance(answer_value, list):
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'questionnaire_answers[{question_key}] must be a list of answers.'
+                    }, status=400)
+            
             sell_mobile_id = data['sell_mobile_id']
-            sell_mobile_ref = db.collection('sell_mobiles').document(sell_mobile_id)
+            sell_mobile_ref = db.collection('sell_mobile_listings').document(sell_mobile_id)
             mobile_doc = sell_mobile_ref.get()
             
             if not mobile_doc.exists:
                 return JsonResponse({'status': 'error', 'message': 'Sell mobile listing not found.'}, status=404)
             
+            # Set default status and timestamps
             data['status'] = data.get('status', 'pending') # Default status
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
             
+            # Save inquiry to Firestore
             doc_ref = db.collection('sell_mobile_inquiries').document()
             doc_ref.set(data)
             
@@ -297,7 +401,6 @@ def fetch_user_inquiries(request):
         for inquiry_doc in inquiries_ref.stream():
             inquiry_data = inquiry_doc.to_dict()
             inquiry_data['id'] = inquiry_doc.id
-            
             created_at = inquiry_data.get('created_at')
             if created_at and isinstance(created_at, datetime): # Ensure it's datetime before formatting
                 inquiry_data['created_at'] = created_at.isoformat()
@@ -310,7 +413,7 @@ def fetch_user_inquiries(request):
             mobile_listing_details = None
             
             if sell_mobile_id:
-                mobile_doc_ref = db.collection('sell_mobiles').document(sell_mobile_id)
+                mobile_doc_ref = db.collection('sell_mobile_listings').document(sell_mobile_id)
                 mobile_doc = mobile_doc_ref.get()
                 if mobile_doc.exists:
                     mobile_listing_data = mobile_doc.to_dict()
@@ -529,106 +632,6 @@ def get_phone_details(request, brand, phone_series, phone_model):
         }, status=500)
 
 @csrf_exempt
-def calculate_phone_price(request):
-    """
-    Calculate the final price for a phone based on its base variant price and
-    adjustments from question answers, using the dynamic catalog.
-    """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            
-            required_fields = ['brand', 'phone_series', 'phone_model', 'selected_variant', 'question_answers']
-            for field in required_fields:
-                if field not in data:
-                    return JsonResponse({'status': 'error', 'message': f'Missing field: {field}'}, status=400)
-
-            brand = data['brand']
-            phone_series = data['phone_series']
-            phone_model = data['phone_model']
-            selected_variant = data['selected_variant'] # e.g., {"storage": "128GB", "ram": "4GB"}
-            question_answers = data['question_answers'] # e.g., {"screen_condition": "Flawless", "faults_detected": ["No faults"]}
-
-            # 1. Fetch phone details from catalog
-            catalog_doc_ref = db.collection('phone_catalog').document('catalog_data')
-            catalog_doc = catalog_doc_ref.get()
-            if not catalog_doc.exists:
-                return JsonResponse({'status': 'error', 'message': 'Phone catalog not found.'}, status=404)
-            
-            catalog = catalog_doc.to_dict()
-            try:
-                phone_data = catalog['brands'][brand]['phone_series'][phone_series]['phones'][phone_model]
-            except KeyError:
-                return JsonResponse({'status': 'error', 'message': 'Phone model not found in catalog with provided path.'}, status=404)
-
-            # 2. Determine base price from selected_variant and variant_prices
-            variant_prices = phone_data.get('variant_prices', {})
-            storage_selected = selected_variant.get('storage')
-            ram_selected = selected_variant.get('ram') # RAM might be optional in selection if only one option
-
-            base_price = 0
-            if storage_selected and storage_selected in variant_prices:
-                if ram_selected and ram_selected in variant_prices[storage_selected]:
-                    base_price = variant_prices[storage_selected][ram_selected]
-                elif not ram_selected and len(variant_prices[storage_selected]) == 1: # If RAM not specified and only one RAM option for storage
-                    ram_key = list(variant_prices[storage_selected].keys())[0]
-                    base_price = variant_prices[storage_selected][ram_key]
-                elif isinstance(variant_prices[storage_selected], (int, float)): # Simpler structure: "128GB": 50000
-                     base_price = variant_prices[storage_selected]
-                else:
-                    return JsonResponse({'status': 'error', 'message': f'RAM option for storage {storage_selected} not found or ambiguous.'}, status=400)
-            else:
-                return JsonResponse({'status': 'error', 'message': f'Storage option {storage_selected} not found in variant_prices.'}, status=400)
-
-            # 3. Calculate adjustments from question_answers
-            total_adjustment = 0
-            adjustments_details = []
-            
-            all_questions_map = {} # Map question_id to question details for easy lookup
-            for group_key, group_data in phone_data.get('question_groups', {}).items():
-                for question in group_data.get('questions', []):
-                    all_questions_map[question['id']] = question
-            
-            for q_id, answered_labels in question_answers.items():
-                if q_id in all_questions_map:
-                    question_detail = all_questions_map[q_id]
-                    options_map = {opt['label']: opt for opt in question_detail['options']}
-                    
-                    if isinstance(answered_labels, list): # Multi-choice
-                        for label in answered_labels:
-                            if label in options_map:
-                                modifier = options_map[label].get('price_modifier', 0)
-                                total_adjustment += modifier
-                                adjustments_details.append({'question': q_id, 'option': label, 'modifier': modifier})
-                            # else: log unknown label?
-                    else: # Single-choice
-                        label = answered_labels
-                        if label in options_map:
-                            modifier = options_map[label].get('price_modifier', 0)
-                            total_adjustment += modifier
-                            adjustments_details.append({'question': q_id, 'option': label, 'modifier': modifier})
-                        # else: log unknown label?
-            
-            final_price = base_price + total_adjustment
-            
-            return JsonResponse({
-                'status': 'success',
-                'calculated_price': final_price,
-                'base_price': base_price,
-                'total_adjustment': total_adjustment,
-                'adjustments_details': adjustments_details
-            })
-
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
-        except KeyError as ke:
-            return JsonResponse({'status': 'error', 'message': f'Missing key in input or catalog structure: {str(ke)}'}, status=400)
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'An error occurred during price calculation: {str(e)}'}, status=500)
-    
-    return JsonResponse({'status': 'error', 'message': 'Only POST method allowed'}, status=405)
-
-@csrf_exempt
 def temp_bulk_upload_from_json_file(request):
     """
     Temporary view to upload phone catalog data from simplified_phone_data.json
@@ -636,21 +639,6 @@ def temp_bulk_upload_from_json_file(request):
     """
     if request.method == 'GET': # Or POST, GET is simpler for a temp one-off
         try:
-            # Construct the absolute path to the JSON file
-            # Assuming the script is run from the project root or paths are set up correctly for Django
-            # settings.BASE_DIR should point to the project root "Ecommerce_FL_Backend"
-            # For simplicity, constructing path from a known structure.
-            # If manage.py is at "c:\\Users\\Anubhav Choubey\\Documents\\New_Freelance_Ecommerce_Work\\Ecommerce_FL_Backend\\manage.py"
-            # then BASE_DIR is "c:\\Users\\Anubhav Choubey\\Documents\\New_Freelance_Ecommerce_Work\\Ecommerce_FL_Backend"
-            
-            # It's better to use settings.BASE_DIR if available and configured
-            # from django.conf import settings
-            # base_dir = settings.BASE_DIR
-            # file_path = os.path.join(base_dir, 'simplified_phone_data.json')
-
-            # Hardcoding path for this specific case as BASE_DIR context isn't directly available to the tool
-            # This assumes the server is run from the workspace root.
-            # A more robust solution in a real Django app would use settings.BASE_DIR
             workspace_root = "c:\\\\Users\\\\Anubhav Choubey\\\\Documents\\\\New_Freelance_Ecommerce_Work\\\\Ecommerce_FL_Backend"
             file_path = os.path.join(workspace_root, 'simplified_phone_data.json')
 
