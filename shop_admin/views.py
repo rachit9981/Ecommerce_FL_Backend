@@ -9,6 +9,7 @@ from anand_mobiles.settings import SECRET_KEY
 from firebase_admin import firestore
 from datetime import datetime
 import logging
+from .page_models import PageContent
 
 logger = logging.getLogger(__name__)
 
@@ -721,7 +722,7 @@ def get_all_product_reviews(request):
             product_id = product_doc.id
             
             # Get reviews for this product
-            reviews_ref = db.collection('products').document(product_id).collection('reviews').order_by('created_at', direction=firestore.Query.DESCENDING).stream()
+            reviews_ref = db.collection('products').document(product_id).collection('reviews').order_by('created_at', direction='DESCENDING').stream()
             
             product_reviews = []
             for review_doc in reviews_ref:
@@ -769,7 +770,7 @@ def get_reported_reviews(request):
             product_id = product_doc.id
             
             # Get reviews for this product that have been reported
-            reviews_ref = db.collection('products').document(product_id).collection('reviews').where('reported_count', '>', 0).order_by('reported_count', direction=firestore.Query.DESCENDING).stream()
+            reviews_ref = db.collection('products').document(product_id).collection('reviews').where('reported_count', '>', 0).order_by('reported_count', direction='DESCENDING').stream()
             
             for review_doc in reviews_ref:
                 review_data = review_doc.to_dict()
@@ -1253,3 +1254,346 @@ def update_variant_stock(request, product_id):
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+## Views for footer management
+
+@csrf_exempt
+def get_footer_config(request):
+    """Get footer configuration (no auth required for public access)"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Get footer settings from Firebase
+        footer_ref = db.collection('settings').document('footer')
+        footer_doc = footer_ref.get()
+        
+        if footer_doc.exists:
+            footer_data = footer_doc.to_dict()
+        else:
+            # Default footer configuration
+            footer_data = {
+                'company_info': {
+                    'description': 'Your trusted electronics partner offering the latest mobiles, laptops, and accessories at competitive prices with excellent customer service.',
+                    'logo_url': '',
+                    'enabled': True
+                },
+                'contact_info': {
+                    'phone': '1800-123-4567',
+                    'email': 'info@anandmobiles.com',
+                    'address': '123 Retail Park, Main Street, Bhopal, MP - 462001',
+                    'hours': 'Mon-Sat: 10:00 AM - 8:00 PM',
+                    'enabled': False
+                },
+                'social_links': [
+                    {'name': 'Facebook', 'url': 'https://facebook.com', 'icon': 'FaFacebookF', 'enabled': True},
+                    {'name': 'Twitter', 'url': 'https://twitter.com', 'icon': 'FaTwitter', 'enabled': True},
+                    {'name': 'Instagram', 'url': 'https://instagram.com', 'icon': 'FaInstagram', 'enabled': True},
+                    {'name': 'YouTube', 'url': 'https://youtube.com', 'icon': 'FaYoutube', 'enabled': True},
+                    {'name': 'LinkedIn', 'url': 'https://linkedin.com', 'icon': 'FaLinkedinIn', 'enabled': True}
+                ],
+                'quick_links': [
+                    {'name': 'Home', 'path': '/', 'enabled': True},
+                    {'name': 'About', 'path': '/about', 'enabled': True},
+                    {'name': 'Contact', 'path': '/contact', 'enabled': True}
+                ],
+                'customer_service_links': [
+                    {'name': 'Track Your Order', 'path': '/track-order', 'enabled': True},
+                    {'name': 'Bulk Orders', 'path': '/bulk-order', 'enabled': True}
+                ],
+                'policy_links': [
+                    {'name': 'Terms & Conditions', 'path': '/terms-conditions', 'enabled': True},
+                    {'name': 'Cancellation & Refund Policy', 'path': '/cancellation-refund-policy', 'enabled': True},
+                    {'name': 'Privacy Policy', 'path': '/privacy-policy', 'enabled': True},
+                    {'name': 'Shipping & Delivery Policy', 'path': '/shipping-delivery-policy', 'enabled': True}
+                ],
+                'know_more_links': [
+                    {'name': 'Our Stores', 'path': '/our-stores', 'enabled': True},
+                    {'name': 'Service Center', 'url': 'https://www.poorvika.com/service-center', 'enabled': True}
+                ],
+                'footer_policy_links': [
+                    {'name': 'Privacy Policy', 'path': '/privacy-policy', 'enabled': True},
+                    {'name': 'Terms of Use', 'path': '/terms-conditions', 'enabled': True},
+                    {'name': 'Warranty Policy', 'path': '/warranty-policy', 'enabled': True}
+                ],
+                'whatsapp': {
+                    'number': '1234567890',
+                    'channel_url': 'https://whatsapp.com/channel/YOUR_CHANNEL_ID_HERE',
+                    'enabled': True
+                },
+                'copyright': {
+                    'text': 'Copyright © Anand mobiles | All Rights Reserved',
+                    'developer_name': 'Byteversal.in',
+                    'developer_url': 'https://byteversal.in/',
+                    'enabled': True
+                }
+            }
+        
+        return JsonResponse({'footer_config': footer_data}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def update_footer_config(request):
+    """Update footer configuration"""
+    if request.method != 'PUT':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        footer_config = data.get('footer_config')
+        
+        if not footer_config:
+            return JsonResponse({'error': 'Footer configuration is required!'}, status=400)
+        
+        # Update footer settings in Firebase
+        footer_ref = db.collection('settings').document('footer')
+        footer_ref.set(footer_config)
+        
+        return JsonResponse({'message': 'Footer configuration updated successfully!'}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data!'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def update_social_link(request, link_index):
+    """Update a specific social media link"""
+    if request.method != 'PUT':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        url = data.get('url')
+        icon = data.get('icon')
+        enabled = data.get('enabled', True)
+        
+        if not name or not url:
+            return JsonResponse({'error': 'Name and URL are required!'}, status=400)
+        
+        # Get current footer config
+        footer_ref = db.collection('settings').document('footer')
+        footer_doc = footer_ref.get()
+        
+        if not footer_doc.exists:
+            return JsonResponse({'error': 'Footer configuration not found!'}, status=404)
+        
+        footer_data = footer_doc.to_dict()
+        
+        # Update the specific social link
+        if 'social_links' not in footer_data:
+            footer_data['social_links'] = []
+        
+        link_index = int(link_index)
+        if 0 <= link_index < len(footer_data['social_links']):
+            footer_data['social_links'][link_index] = {
+                'name': name,
+                'url': url,
+                'icon': icon,
+                'enabled': enabled
+            }
+        else:
+            # Add new social link
+            footer_data['social_links'].append({
+                'name': name,
+                'url': url,
+                'icon': icon,
+                'enabled': enabled
+            })
+        
+        # Update in Firebase
+        footer_ref.set(footer_data)
+        
+        return JsonResponse({'message': 'Social link updated successfully!'}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data!'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def add_footer_link(request):
+    """Add a new footer link to any section"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        section = data.get('section')  # quick_links, policy_links, etc.
+        name = data.get('name')
+        path = data.get('path')
+        url = data.get('url')
+        enabled = data.get('enabled', True)
+        
+        if not section or not name:
+            return JsonResponse({'error': 'Section and name are required!'}, status=400)
+        
+        if not path and not url:
+            return JsonResponse({'error': 'Either path or URL is required!'}, status=400)
+        
+        # Get current footer config
+        footer_ref = db.collection('settings').document('footer')
+        footer_doc = footer_ref.get()
+        
+        if not footer_doc.exists:
+            return JsonResponse({'error': 'Footer configuration not found!'}, status=404)
+        
+        footer_data = footer_doc.to_dict()
+        
+        # Add the new link to the specified section
+        if section not in footer_data:
+            footer_data[section] = []
+        
+        new_link = {
+            'name': name,
+            'enabled': enabled
+        }
+        
+        if path:
+            new_link['path'] = path
+        if url:
+            new_link['url'] = url
+        
+        footer_data[section].append(new_link)
+        
+        # Update in Firebase
+        footer_ref.set(footer_data)
+        
+        return JsonResponse({'message': 'Footer link added successfully!'}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data!'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def delete_footer_link(request, section, link_index):
+    """Delete a footer link from any section"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        # Get current footer config
+        footer_ref = db.collection('settings').document('footer')
+        footer_doc = footer_ref.get()
+        
+        if not footer_doc.exists:
+            return JsonResponse({'error': 'Footer configuration not found!'}, status=404)
+        
+        footer_data = footer_doc.to_dict()
+        
+        # Delete the link from the specified section
+        if section not in footer_data or not isinstance(footer_data[section], list):
+            return JsonResponse({'error': 'Section not found!'}, status=404)
+        
+        link_index = int(link_index)
+        if 0 <= link_index < len(footer_data[section]):
+            del footer_data[section][link_index]
+        else:
+            return JsonResponse({'error': 'Link not found!'}, status=404)
+        
+        # Update in Firebase
+        footer_ref.set(footer_data)
+        
+        return JsonResponse({'message': 'Footer link deleted successfully!'}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@admin_required
+def toggle_footer_section(request, section):
+    """Toggle enable/disable for footer sections"""
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'Invalid request method!'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        enabled = data.get('enabled')
+        
+        if enabled is None:
+            return JsonResponse({'error': 'Enabled status is required!'}, status=400)
+        
+        # Get current footer config
+        footer_ref = db.collection('settings').document('footer')
+        footer_doc = footer_ref.get()
+        
+        if not footer_doc.exists:
+            return JsonResponse({'error': 'Footer configuration not found!'}, status=404)
+        
+        footer_data = footer_doc.to_dict()
+        
+        # Update the section enabled status
+        if section in footer_data and isinstance(footer_data[section], dict):
+            footer_data[section]['enabled'] = enabled
+        else:
+            return JsonResponse({'error': 'Section not found!'}, status=404)
+        
+        # Update in Firebase
+        footer_ref.set(footer_data)
+        
+        return JsonResponse({'message': f'Footer section {section} updated successfully!'}, status=200)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data!'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+# Page Content views
+@csrf_exempt
+@admin_required
+def get_page_content(request, page_path):
+    """Admin endpoint to get page content by path."""
+    if request.method == 'GET':
+        try:
+            page_content = PageContent.get_by_path(page_path)
+            return JsonResponse({
+                'page_path': page_content.page_path,
+                'content': page_content.content,
+                'last_updated': page_content.last_updated
+            })
+        except Exception as e:
+            logger.error(f"Error retrieving page content: {str(e)}")
+            return JsonResponse({'error': 'Failed to retrieve page content'}, status=500)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+@admin_required
+def update_page_content(request, page_path):
+    """Admin endpoint to update page content by path."""
+    if request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+            content = data.get('content', '')
+            
+            # Update or create page content
+            page_content = PageContent.update(page_path, content)
+            
+            return JsonResponse({
+                'page_path': page_content.page_path,
+                'content': page_content.content,
+                'last_updated': page_content.last_updated
+            })
+        except Exception as e:
+            logger.error(f"Error updating page content: {str(e)}")
+            return JsonResponse({'error': 'Failed to update page content'}, status=500)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+# Public view for retrieving page content for frontend display
+@csrf_exempt
+def public_get_page_content(request, page_path):
+    """Public endpoint to get page content by path."""
+    if request.method == 'GET':
+        try:
+            page_content = PageContent.get_by_path(page_path)
+            return JsonResponse({
+                'content': page_content.content
+            })
+        except Exception as e:
+            logger.error(f"Error retrieving public page content: {str(e)}")
+            return JsonResponse({'error': 'Failed to retrieve page content'}, status=500)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
