@@ -78,4 +78,3 @@ jobs:
               'source "$REMOTE_VENV_DIR/bin/activate" && gunicorn main:app --bind 0.0.0.0:8000'
 
             echo "✅  Deployment finished!"
-EOF
