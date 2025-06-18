@@ -68,6 +68,6 @@ jobs:
               tmux kill-session -t "\$TMUX_SESSION"
             fi
             tmux new-session -d -s "\$TMUX_SESSION" \
-              "cd '\$REMOTE_REPO_DIR' && source '\$REMOTE_VENV_DIR/bin/activate' && gunicorn main:app --bind 0.0.0.0:8000"
+              "cd '\$REMOTE_REPO_DIR' && source '\$REMOTE_VENV_DIR/bin/activate' && gunicorn --bind 0.0.0.0:8000 anand_mobiles.wsgi"
 
             echo "✅  Backend deployed & running."
