@@ -12,47 +12,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout (optional)
         uses: actions/checkout@v3
 
-      - name: Install sshpass
+      - name: Install sshpass in runner
         run: sudo apt-get update && sudo apt-get install -y sshpass
 
       - name: Deploy to server
         env:
           REMOTE_REPO_DIR: /root/deploy/Ecommerce_FL_Backend
-          REMOTE_VENV_DIR: /root/venvs/backend_env
-          TMUX_SESSION: backend_session
+          REMOTE_VENV_DIR:  /root/venvs/backend_env
+          TMUX_SESSION:     backend_session
+          # Build an HTTPS URL that embeds the PAT once,
+          # so git can pull without prompting.
+          GIT_URL: https://${{ secrets.GH_PAT }}@github.com/LazyyVenom/Ecommerce_FL_Backend.git
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'EOSSH'
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" \
+          ssh -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" bash -s <<'EOSSH'
             set -e
 
-            echo "📁  Ensuring repo folder exists..."
-            mkdir -p /root/deploy/Ecommerce_FL_Backend
+            echo "➕  Adding GitHub host key to known_hosts (one‑time)…"
+            mkdir -p ~/.ssh
+            ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-            cd /root/deploy/Ecommerce_FL_Backend
+            echo "📁  Ensuring repo folder exists…"
+            mkdir -p "$REMOTE_REPO_DIR"
+            cd "$REMOTE_REPO_DIR"
 
             if [ ! -d .git ]; then
-              echo "🔰  First-time clone..."
-              git clone git@github.com:LazyyVenom/Ecommerce_FL_Backend.git .
+              echo "🔰  First‑time clone…"
+              git clone "$GIT_URL" .
             else
-              echo "🔄  Pulling latest code..."
-              git remote set-url origin git@github.com:LazyyVenom/Ecommerce_FL_Backend.git
-              git reset --hard
-              git pull origin main
+              echo "🔄  Pulling latest code…"
+              # In case the remote changed, always force the correct URL
+              git remote set-url origin "$GIT_URL"
+              git fetch --prune
+              git reset --hard origin/main
             fi
 
-            echo "🐍  Updating Python deps..."
-            source /root/venvs/backend_env/bin/activate
+            echo "🐍  Updating Python deps in venv…"
+            if [ ! -d "$REMOTE_VENV_DIR" ]; then
+              python3 -m venv "$REMOTE_VENV_DIR"
+            fi
+            source "$REMOTE_VENV_DIR/bin/activate"
+            pip install --upgrade pip
             pip install --upgrade -r requirements.txt
 
-            echo "🎬  Restarting tmux session..."
-            if tmux has-session -t backend_session 2>/dev/null; then
-              tmux kill-session -t backend_session
+            echo "🎬  Restarting tmux session '$TMUX_SESSION'…"
+            if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+              tmux kill-session -t "$TMUX_SESSION"
             fi
+            tmux new-session -d -s "$TMUX_SESSION" \
+              "source '$REMOTE_VENV_DIR/bin/activate' && cd '$REMOTE_REPO_DIR' && gunicorn main:app --bind 0.0.0.0:8000"
 
-            tmux new-session -d -s backend_session \
-              "cd /root/deploy/Ecommerce_FL_Backend && source /root/venvs/backend_env/bin/activate && gunicorn main:app --bind 0.0.0.0:8000"
-
-            echo "✅  Backend deployed and running."
-          EOSSH
+            echo "✅  Backend deployed & running."
+EOSSH
