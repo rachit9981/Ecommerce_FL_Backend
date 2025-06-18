@@ -46,3 +46,6 @@ This backend is designed to work with a React frontend. The CORS settings are co
 - http://127.0.0.1:3000
 
 You can add more allowed origins in the `settings.py` file.
+
+BUILD BY : Priyanshu Dayal @priyanshudayal1
+and Anubhav Choubey @lazyyvenom
