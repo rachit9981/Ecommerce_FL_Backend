@@ -6,7 +6,7 @@ df["Description"] = "Very Good Mobile"
 print(df.head())
 print(df.info())
 
-# Using correct column names from your data
+# Using correct column names from your data 
 print(df[['Model Name', 'Brand']].drop_duplicates())
 
 # Create a sub-dataframe with unique brand, model name, and specs
