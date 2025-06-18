@@ -53,4 +53,3 @@ jobs:
               "source '$REMOTE_VENV_DIR/bin/activate' && cd '$REMOTE_REPO_DIR' && gunicorn main:app --bind 0.0.0.0:8000"
 
             echo "✅  Backend deployed and running"
-EOF
