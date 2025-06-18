@@ -45,7 +45,7 @@ jobs:
         env:
           # ➡️  EDIT THESE PATHS / VALUES TO MATCH YOUR SERVER
           REMOTE_REPO_DIR: /root/deploy/Ecommerce_FL_Backend            # where the repo lives on the server
-          REMOTE_REPO_URL: https://github.com/LazyyVenom/Ecommerce_FL_Backend.git     # or git@github.com:… if you use SSH keys
+          REMOTE_REPO_URL: git@github.com:LazyyVenom/Ecommerce_FL_Backend.git     # or git@github.com:… if you use SSH keys
           REMOTE_VENV_DIR: /root/venvs/backend_env                       # existing virtual‑env path
           TMUX_SESSION: backend_session                                  # tmux session name
         run: |
