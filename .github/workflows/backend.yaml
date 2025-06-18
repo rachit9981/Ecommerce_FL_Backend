@@ -1,0 +1,72 @@
+# .github/workflows/backend-deploy.yml
+name: Python Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Fetch the repository so we can (optionally) lint/test here
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ (Optional) run local tests ‑ remove if you don’t have tests yet
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install test requirements
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-test.txt ]; then
+            pip install -r requirements-test.txt
+          fi
+
+      - name: Run unit tests
+        run: |
+          if [ -d tests ]; then
+            python -m pytest -q
+          fi
+
+      # 3️⃣ Prepare sshpass so we can log in with a password
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      # 4️⃣ Deploy: pull, install deps, (re)launch tmux session
+      - name: Deploy backend on server
+        env:
+          # Re‑use the repo path and venv path you set up on the server
+          REMOTE_REPO_DIR: /root/deploy/Ecommerce_FL_Backend
+          REMOTE_VENV_DIR: /root/venvs/backend_env
+          TMUX_SESSION: backend_session
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e  # exit on error so Action fails if anything breaks
+
+            echo "🔄  Pulling latest code…"
+            cd "$REMOTE_REPO_DIR"
+            git pull origin main
+
+            echo "🐍  Activating virtual‑env & installing deps…"
+            source "$REMOTE_VENV_DIR/bin/activate"
+            pip install --upgrade -r requirements.txt
+
+            echo "🚀  Restarting tmux session '$TMUX_SESSION'…"
+            if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+              tmux kill-session -t "$TMUX_SESSION"
+            fi
+            # Start the backend again inside a fresh tmux session.
+            # Replace the command below with whatever starts your server.
+            tmux new-session -d -s "$TMUX_SESSION" \
+              'source "$REMOTE_VENV_DIR/bin/activate" && gunicorn main:app --bind 0.0.0.0:8000'
+
+            echo "✅  Deployment complete."
+          EOF
