@@ -21,7 +21,7 @@ A Django REST API backend for the Anand Mobiles e-commerce platform.
    ```
 5. Create a superuser:
    ```bash
-   python manage.py createsuperuser
+   python manage.py createsuperuser 
    ```
 6. Run the development server:
    ```bash
