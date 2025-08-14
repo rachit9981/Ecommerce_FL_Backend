@@ -2,9 +2,9 @@ name: Python Backend CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
 
@@ -19,7 +22,7 @@ jobs:
         env:
           REMOTE_REPO_DIR: /root/Ecommerce_FL_Backend
           REMOTE_VENV_DIR: /root/Ecommerce_FL_Backend/venv
-          GIT_URL: https://${{ secrets.GH_PAT }}@github.com/LazyyVenom/Ecommerce_FL_Backend.git
+          GIT_URL: https://github.com/rachit9981/Ecommerce_FL_Backend.git
           GUNICORN_SERVICE: gunicorn
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" \
