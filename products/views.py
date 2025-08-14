@@ -314,3 +314,9 @@ def add_product(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def test_api(request):
+    if request.method == 'POST':
+        return JsonResponse({'status': 'success', 'message': 'Test API endpoint hit successfully!'})
+    return JsonResponse({'status': 'success', 'message': 'Test API endpoint hit successfully!'})
