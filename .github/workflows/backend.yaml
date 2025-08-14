@@ -23,7 +23,7 @@ jobs:
           GUNICORN_SERVICE: gunicorn
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" \
-          ssh -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" bash -s <<EOSSH
+          ssh -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" bash -s <<'EOSSH'
             set -e
 
             # ── 1. One‑time: trust GitHub host key ───────────────────────────
@@ -34,35 +34,35 @@ jobs:
 
             # ── 2. Clone or update repo ──────────────────────────────────────
             echo "📁 Ensuring repo folder exists…"
-            mkdir -p "\$REMOTE_REPO_DIR"
-            cd "\$REMOTE_REPO_DIR"
+            mkdir -p "$REMOTE_REPO_DIR"
+            cd "$REMOTE_REPO_DIR"
 
             if [ ! -d .git ]; then
               echo "🔰 First-time clone…"
-              git clone "\$GIT_URL" .
+              git clone "$GIT_URL" .
             else
               echo "🔄 Pulling latest code…"
-              git remote set-url origin "\$GIT_URL"
+              git remote set-url origin "$GIT_URL"
               git fetch --prune
               git reset --hard origin/main
             fi
 
             # ── 3. Update venv & dependencies ───────────────────────────────
-            source "\$REMOTE_VENV_DIR/bin/activate"
+            source "$REMOTE_VENV_DIR/bin/activate"
             pip install --upgrade pip
             pip install --upgrade -r requirements.txt
 
             # ── 4. Apply migrations & collect static files (optional) ──────
-            cd "\$REMOTE_REPO_DIR"
+            cd "$REMOTE_REPO_DIR"
             python manage.py makemigrations
             python manage.py migrate --noinput
             python manage.py collectstatic --noinput
 
             # ── 5. Restart Gunicorn systemd service ─────────────────────────
-            echo "🔄 Restarting Gunicorn service '\$GUNICORN_SERVICE'…"
+            echo "🔄 Restarting Gunicorn service '$GUNICORN_SERVICE'…"
             sudo systemctl daemon-reload
-            sudo systemctl restart "\$GUNICORN_SERVICE"
-            sudo systemctl status "\$GUNICORN_SERVICE" --no-pager
+            sudo systemctl restart "$GUNICORN_SERVICE"
+            sudo systemctl status "$GUNICORN_SERVICE" --no-pager
 
             echo "✅ Backend deployed & Gunicorn restarted."
-EOSSH
+          EOSSH
