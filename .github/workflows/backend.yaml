@@ -26,7 +26,9 @@ jobs:
           GUNICORN_SERVICE: gunicorn
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" \
-          ssh -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" bash -s <<'EOSSH'
+          ssh -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+          "REMOTE_REPO_DIR='$REMOTE_REPO_DIR' REMOTE_VENV_DIR='$REMOTE_VENV_DIR' GIT_URL='$GIT_URL' GUNICORN_SERVICE='$GUNICORN_SERVICE'" \
+          bash -s <<'EOSSH'
             set -e
 
             # ── 1. One‑time: trust GitHub host key ───────────────────────────
