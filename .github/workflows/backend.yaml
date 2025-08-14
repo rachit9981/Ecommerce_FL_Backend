@@ -60,8 +60,7 @@ jobs:
             # ── 4. Apply migrations & collect static files (optional) ──────
             cd "$REMOTE_REPO_DIR"
             python manage.py makemigrations
-            python manage.py migrate --noinput
-            python manage.py collectstatic --noinput
+            python manage.py migrate
 
             # ── 5. Restart Gunicorn systemd service ─────────────────────────
             echo "🔄 Restarting Gunicorn service '$GUNICORN_SERVICE'…"
